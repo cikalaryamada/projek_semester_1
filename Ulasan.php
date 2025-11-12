@@ -277,15 +277,7 @@
   <script>
     // Sample reviews data
     const sampleReviews = [
-      {
-        id: 1,
-        name: "Budi Santoso",
-        rating: 5,
-        title: "Tempat nongkrong favorit!",
-        text: "K SIXTEEN CAFE benar-benar menjadi tempat favorit saya untuk nongkrong. Kopinya enak, makanannya lezat, dan suasana nyaman. Staffnya juga ramah-ramah. Sangat recommended!",
-        date: "2 hari yang lalu",
-        recommend: true
-      },
+
       {
         id: 1,
         name: "Budi Santoso",
