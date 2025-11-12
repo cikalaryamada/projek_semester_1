@@ -290,7 +290,7 @@
       {
         id: 2,
         name: "Sari Dewi",
-        rating: 5,
+        rating: 5, 
         title: "Pelayanan luar biasa",
         text: "Saya sering datang ke sini untuk meeting atau sekedar mengerjakan tugas. WiFi-nya cepat, tempatnya nyaman, dan yang paling penting kopinya selalu konsisten enaknya. Pelayanan staff juga sangat baik.",
         date: "1 minggu yang lalu",
