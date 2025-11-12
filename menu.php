@@ -15,7 +15,7 @@
         <div class="logo-image">
           <img src="assets/images/logo.jpg" alt="K SIXTEEN CAFE">
         </div>
-        <div class="logo-text">K SIXTEEN CAFE</div>
+        <div class="logo-text">K-SIXTEEN CAFE</div>
       </div>
       
       <ul class="nav-menu">
