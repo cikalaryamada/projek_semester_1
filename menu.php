@@ -117,17 +117,17 @@
               </span>
             </label>
             <label class="payment-option">
-              <input type="radio" name="payment" value="bri">
-              <span class="payment-label">
-                <i class="fas fa-university"></i>
-                Transfer Bank BRI
-              </span>
-            </label>
-            <label class="payment-option">
               <input type="radio" name="payment" value="cash">
               <span class="payment-label">
                 <i class="fas fa-money-bill-wave"></i>
                 Tunai
+              </span>
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="payment" value="transfer">
+              <span class="payment-label">
+                <i class="fas fa-university"></i>
+                Transfer Bank
               </span>
             </label>
           </div>
@@ -136,51 +136,8 @@
       
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeCheckoutModal()">Batal</button>
-        <button class="btn-primary" onclick="processPayment()">
-          <i class="fas fa-credit-card"></i> Lanjutkan Pembayaran
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Payment Modal -->
-  <div class="modal" id="payment-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Pembayaran</h3>
-        <button class="modal-close" onclick="closePaymentModal()">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      
-      <div class="modal-body">
-        <div class="payment-instructions" id="payment-instructions">
-          <!-- Payment instructions will be loaded here -->
-        </div>
-        
-        <div class="payment-status" id="payment-status">
-          <div class="status-pending">
-            <i class="fas fa-clock"></i>
-            <h4>Menunggu Pembayaran</h4>
-            <p>Silakan selesaikan pembayaran Anda</p>
-          </div>
-          
-          <div class="status-success" style="display: none;">
-            <i class="fas fa-check-circle"></i>
-            <h4>Pembayaran Berhasil</h4>
-            <p>Pesanan Anda sedang diproses</p>
-          </div>
-        </div>
-        
-        <div class="payment-timer" id="payment-timer">
-          <p>Selesaikan dalam: <span id="countdown">15:00</span></p>
-        </div>
-      </div>
-      
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closePaymentModal()">Batalkan Pesanan</button>
-        <button class="btn-primary" id="confirm-payment-btn" onclick="confirmPayment()" style="display: none;">
-          <i class="fas fa-check"></i> Konfirmasi Pembayaran
+        <button class="btn-primary" onclick="sendOrder()">
+          <i class="fab fa-whatsapp"></i> Kirim via WhatsApp
         </button>
       </div>
     </div>
@@ -443,8 +400,6 @@
 
     let cart = [];
     let currentCategory = 'makanan';
-    let currentOrder = null;
-    let paymentTimer = null;
 
     // Initialize the menu
     function initMenu() {
@@ -648,364 +603,670 @@
       document.body.style.overflow = 'auto';
     }
 
-    // Process payment based on selected method
-    function processPayment() {
-      const customerName = document.getElementById('customer-name').value.trim();
-      const tableNumber = document.getElementById('table-number').value.trim();
-      const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-      
-      if (!customerName || !tableNumber) {
+    // Send order via WhatsApp
+ // GANTI function sendOrder() yang lama dengan ini:
+
+function sendOrder() {
+    const customerName = document.getElementById('customer-name').value.trim();
+    const tableNumber = document.getElementById('table-number').value.trim();
+    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    
+    if (!customerName || !tableNumber) {
         alert('Harap isi nama pemesan dan nomor meja!');
         return;
-      }
-      
-      // Create order object
-      const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-      currentOrder = {
-        id: 'K16-' + Date.now(),
+    }
+    
+    // Siapkan data untuk dikirim
+    const orderData = {
         customer_name: customerName,
+        customer_phone: '', // Bisa ditambahkan field nomor telepon
         table_number: tableNumber,
         payment_method: paymentMethod,
-        total: total,
-        items: [...cart],
-        status: 'pending',
-        created_at: new Date().toISOString()
-      };
-      
-      // Save order to localStorage
-      saveOrder(currentOrder);
-      
-      // Close checkout modal and open payment modal
-      closeCheckoutModal();
-      openPaymentModal(paymentMethod, total);
-    }
-
-    // Open payment modal with instructions
-    function openPaymentModal(method, total) {
-      const modal = document.getElementById('payment-modal');
-      const instructions = document.getElementById('payment-instructions');
-      
-      // Reset payment status
-      document.querySelector('.status-pending').style.display = 'block';
-      document.querySelector('.status-success').style.display = 'none';
-      document.getElementById('confirm-payment-btn').style.display = 'none';
-      
-      // Set payment instructions based on method
-      if (method === 'qris') {
-        instructions.innerHTML = `
-          <div class="payment-method-qris">
-            <h4>Pembayaran QRIS</h4>
-            <p>Total: <strong>${formatPrice(total)}</strong></p>
-            <div class="qris-code">
-              <!-- Replace with your actual QRIS image -->
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=K16CAFE-${currentOrder.id}" alt="QRIS Code">
-            </div>
-            <p>Scan QR code di atas menggunakan aplikasi e-wallet atau mobile banking Anda</p>
-            <div class="payment-steps">
-              <p><strong>Langkah-langkah:</strong></p>
-              <ol>
-                <li>Buka aplikasi e-wallet atau mobile banking</li>
-                <li>Pilih fitur scan QRIS</li>
-                <li>Arahkan kamera ke QR code di atas</li>
-                <li>Konfirmasi pembayaran</li>
-                <li>Tunggu konfirmasi otomatis</li>
-              </ol>
-            </div>
-          </div>
-        `;
-        
-        // Simulate automatic verification for QRIS
-        setTimeout(() => {
-          simulatePaymentVerification();
-        }, 10000); // 10 seconds delay for simulation
-      } 
-      else if (method === 'bri') {
-        instructions.innerHTML = `
-          <div class="payment-method-bri">
-            <h4>Transfer Bank BRI</h4>
-            <p>Total: <strong>${formatPrice(total)}</strong></p>
-            <div class="bank-details">
-              <div class="bank-info">
-                <p><strong>Nomor Rekening:</strong> 1234-5678-9012-3456</p>
-                <p><strong>Atas Nama:</strong> K SIXTEEN CAFE</p>
-                <p><strong>Bank:</strong> BRI (Bank Rakyat Indonesia)</p>
-              </div>
-            </div>
-            <div class="payment-steps">
-              <p><strong>Langkah-langkah:</strong></p>
-              <ol>
-                <li>Transfer tepat sejumlah <strong>${formatPrice(total)}</strong></li>
-                <li>Ke rekening BRI di atas</li>
-                <li>Gunakan kode unik: <strong>${currentOrder.id.slice(-4)}</strong></li>
-                <li>Simpan bukti transfer</li>
-                <li>Klik tombol "Konfirmasi Pembayaran" setelah transfer</li>
-              </ol>
-            </div>
-          </div>
-        `;
-        
-        // Show manual confirmation button for bank transfer
-        document.getElementById('confirm-payment-btn').style.display = 'block';
-      }
-      else if (method === 'cash') {
-        instructions.innerHTML = `
-          <div class="payment-method-cash">
-            <h4>Pembayaran Tunai</h4>
-            <p>Total: <strong>${formatPrice(total)}</strong></p>
-            <p>Silakan lakukan pembayaran tunai ke kasir saat pesanan Anda siap.</p>
-            <p>Pesanan Anda akan segera diproses.</p>
-          </div>
-        `;
-        
-        // For cash payment, mark as paid immediately
-        currentOrder.status = 'paid';
-        saveOrder(currentOrder);
-        document.querySelector('.status-pending').style.display = 'none';
-        document.querySelector('.status-success').style.display = 'block';
-      }
-      
-      // Start payment timer (15 minutes)
-      startPaymentTimer();
-      
-      modal.classList.add('show');
-      document.body.style.overflow = 'hidden';
-    }
-
-    // Close payment modal
-    function closePaymentModal() {
-      const modal = document.getElementById('payment-modal');
-      modal.classList.remove('show');
-      document.body.style.overflow = 'auto';
-      
-      // Clear timer
-      if (paymentTimer) {
-        clearInterval(paymentTimer);
-        paymentTimer = null;
-      }
-    }
-
-    // Start payment countdown timer
-    function startPaymentTimer() {
-      let timeLeft = 15 * 60; // 15 minutes in seconds
-      const countdownElement = document.getElementById('countdown');
-      
-      paymentTimer = setInterval(() => {
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        
-        countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
-        if (timeLeft <= 0) {
-          clearInterval(paymentTimer);
-          // Handle expired payment
-          alert('Waktu pembayaran telah habis. Silakan ulangi proses pemesanan.');
-          closePaymentModal();
-          clearCart();
+        cart_items: cart.map(item => ({
+            nama: item.nama,
+            quantity: item.quantity,
+            harga: item.harga
+        }))
+    };
+    
+    // Tampilkan loading
+    const submitBtn = document.querySelector('.btn-primary');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+    submitBtn.disabled = true;
+    
+    // Kirim ke server
+    fetch('process_order.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Buat pesan untuk WhatsApp
+            let message = `Halo K SIXTEEN CAFE! Saya ingin memesan:\n\n`;
+            
+            cart.forEach(item => {
+                message += `• ${item.nama} x${item.quantity} = Rp ${formatPrice(item.harga * item.quantity)}\n`;
+            });
+            
+            const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+            message += `\nTotal: Rp ${formatPrice(total)}`;
+            message += `\n\nNama: ${customerName}`;
+            message += `\nMeja: ${tableNumber}`;
+            message += `\nMetode Bayar: ${getPaymentMethodName(paymentMethod)}`;
+            message += `\n\nOrder ID: #${data.order_id}`;
+            message += `\n\nTerima kasih!`;
+            
+            const whatsappUrl = `https://wa.me/6282132384305?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+            
+            // Reset dan tutup
+            closeCheckoutModal();
+            clearCart();
+            
+            alert('Pesanan berhasil! Silakan lanjutkan konfirmasi via WhatsApp.');
+        } else {
+            alert('Error: ' + data.message);
         }
-        
-        timeLeft--;
-      }, 1000);
-    }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat memproses pesanan.');
+    })
+    .finally(() => {
+        // Reset button
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
 
-    // Simulate payment verification (for demo purposes)
-    function simulatePaymentVerification() {
-      // In a real implementation, this would be a webhook from payment gateway
-      if (currentOrder && currentOrder.status === 'pending') {
-        currentOrder.status = 'paid';
-        saveOrder(currentOrder);
-        
-        // Update UI
-        document.querySelector('.status-pending').style.display = 'none';
-        document.querySelector('.status-success').style.display = 'block';
-        
-        // Clear timer
-        if (paymentTimer) {
-          clearInterval(paymentTimer);
-          paymentTimer = null;
-        }
-        
-        // Send WhatsApp notification
-        sendWhatsAppNotification();
-      }
-    }
-
-    // Manual confirmation for bank transfer
-    function confirmPayment() {
-      if (currentOrder) {
-        currentOrder.status = 'paid';
-        saveOrder(currentOrder);
-        
-        // Update UI
-        document.querySelector('.status-pending').style.display = 'none';
-        document.querySelector('.status-success').style.display = 'block';
-        document.getElementById('confirm-payment-btn').style.display = 'none';
-        
-        // Clear timer
-        if (paymentTimer) {
-          clearInterval(paymentTimer);
-          paymentTimer = null;
-        }
-        
-        // Send WhatsApp notification
-        sendWhatsAppNotification();
-      }
-    }
-
-    // Save order to localStorage
-    function saveOrder(order) {
-      const orders = JSON.parse(localStorage.getItem('k16_orders') || '[]');
-      orders.push(order);
-      localStorage.setItem('k16_orders', JSON.stringify(orders));
-    }
-
-    // Send WhatsApp notification
-    function sendWhatsAppNotification() {
-      if (!currentOrder) return;
-      
-      let message = `Halo K SIXTEEN CAFE! Saya ingin memesan:\n\n`;
-      
-      currentOrder.items.forEach(item => {
-        message += `• ${item.nama} x${item.quantity} = Rp ${formatPrice(item.harga * item.quantity)}\n`;
-      });
-      
-      message += `\nTotal: Rp ${formatPrice(currentOrder.total)}`;
-      message += `\n\nNama: ${currentOrder.customer_name}`;
-      message += `\nMeja: ${currentOrder.table_number}`;
-      message += `\nMetode Bayar: ${getPaymentMethodName(currentOrder.payment_method)}`;
-      message += `\nOrder ID: ${currentOrder.id}`;
-      message += `\nStatus: ${currentOrder.status === 'paid' ? 'Telah Dibayar' : 'Menunggu Pembayaran'}`;
-      message += `\n\nTerima kasih!`;
-      
-      const whatsappUrl = `https://wa.me/6282132384305?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-      
-      // Clear cart after successful order
-      setTimeout(() => {
-        clearCart();
-        closePaymentModal();
-        alert('Pesanan berhasil! Terima kasih telah memesan di K SIXTEEN CAFE.');
-      }, 2000);
-    }
-
-    // Get payment method name
-    function getPaymentMethodName(method) {
-      const methods = {
+// Tambahkan function ini di menu.php
+function getPaymentMethodName(method) {
+    const methods = {
         'qris': 'QRIS',
-        'bri': 'Transfer Bank BRI',
-        'cash': 'Tunai'
-      };
-      return methods[method] || method;
-    }
+        'cash': 'Tunai',
+        'transfer': 'Transfer Bank'
+    };
+    return methods[method] || method;
+}
 
     // Close modal when clicking outside
     document.addEventListener('click', function(e) {
-      const checkoutModal = document.getElementById('checkout-modal');
-      const paymentModal = document.getElementById('payment-modal');
-      
-      if (e.target === checkoutModal) {
+      const modal = document.getElementById('checkout-modal');
+      if (e.target === modal) {
         closeCheckoutModal();
-      }
-      if (e.target === paymentModal) {
-        closePaymentModal();
       }
     });
 
     // Initialize menu when page loads
     document.addEventListener('DOMContentLoaded', initMenu);
+
+// Debug function
+function debugOrder() {
+    console.log('=== DEBUG ORDER ===');
+    console.log('Cart:', cart);
+    console.log('Customer Name:', document.getElementById('customer-name').value);
+    console.log('Table Number:', document.getElementById('table-number').value);
+    console.log('Payment Method:', document.querySelector('input[name="payment"]:checked').value);
+    
+    // Test langsung
+    const testData = {
+        customer_name: 'Test Customer',
+        table_number: 'A1', 
+        payment_method: 'cash',
+        cart_items: [
+            { nama: 'Kopi Susu', harga: 12000, quantity: 1 },
+            { nama: 'Kentang Goreng', harga: 12000, quantity: 1 }
+        ]
+    };
+    
+    console.log('Test Data:', testData);
+    
+    // Test fetch
+    fetch('process_order.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData)
+    })
+    .then(response => response.json())
+    .then(data => console.log('Test Response:', data))
+    .catch(error => console.error('Test Error:', error));
+}
+
+// Panggil function debug dari console browser
+// Ketik: debugOrder()
   </script>
 
+
   <style>
-    /* Existing styles remain the same, adding new styles for payment modal */
-    
-    .payment-instructions {
-      margin-bottom: 1.5rem;
+    .menu-section {
+      padding: 120px 0 80px;
+      background: var(--cafe-bg);
     }
-    
-    .payment-instructions h4 {
-      color: var(--cafe-main);
-      margin-bottom: 1rem;
+
+    .menu-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 3rem;
+      flex-wrap: wrap;
     }
-    
-    .qris-code {
-      text-align: center;
-      margin: 1rem 0;
-      padding: 1rem;
-      background: white;
-      border-radius: 10px;
-      display: inline-block;
+
+    .menu-tab {
+      background: var(--cafe-card);
+      color: var(--cafe-text);
+      border: 2px solid transparent;
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    
-    .qris-code img {
-      width: 200px;
-      height: 200px;
+
+    .menu-tab.active,
+    .menu-tab:hover {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+      border-color: var(--cafe-main);
     }
-    
-    .bank-details {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 1rem;
-      border-radius: 8px;
-      margin: 1rem 0;
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
     }
-    
-    .bank-info p {
-      margin: 0.5rem 0;
-    }
-    
-    .payment-steps {
-      margin-top: 1rem;
-    }
-    
-    .payment-steps ol {
-      padding-left: 1.5rem;
-      margin: 0.5rem 0;
-    }
-    
-    .payment-steps li {
-      margin-bottom: 0.5rem;
-    }
-    
-    .payment-status {
-      text-align: center;
+
+    .menu-card {
+      background: var(--cafe-card);
+      border-radius: 15px;
       padding: 1.5rem;
+      text-align: center;
+      border: 1px solid var(--cafe-border);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .menu-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--cafe-main);
+      box-shadow: 0 8px 25px rgba(255, 214, 0, 0.15);
+    }
+
+    .menu-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
       border-radius: 10px;
-      margin: 1rem 0;
-    }
-    
-    .status-pending {
-      background: rgba(255, 214, 0, 0.1);
-      border: 1px solid var(--cafe-main);
-    }
-    
-    .status-success {
-      background: rgba(76, 175, 80, 0.1);
-      border: 1px solid #4CAF50;
-    }
-    
-    .payment-status i {
-      font-size: 3rem;
       margin-bottom: 1rem;
     }
-    
-    .status-pending i {
-      color: var(--cafe-main);
-    }
-    
-    .status-success i {
-      color: #4CAF50;
-    }
-    
-    .payment-timer {
-      text-align: center;
-      font-weight: bold;
-      margin: 1rem 0;
-      padding: 0.5rem;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-    }
-    
-    #countdown {
+
+    .menu-card h3 {
       color: var(--cafe-main);
       font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .menu-card .desc {
+      color: var(--cafe-text-light);
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .menu-card .price {
+      color: var(--cafe-main);
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .qty-btn {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+      border: none;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .qty-btn:hover {
+      background: var(--cafe-dark);
+      color: var(--cafe-main);
+      transform: scale(1.1);
+    }
+
+    .qty-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--cafe-main);
+      min-width: 40px;
+      text-align: center;
+    }
+
+    /* Cart Section */
+    .cart-section {
+      background: var(--cafe-card);
+      border-radius: 15px;
+      padding: 2rem;
+      margin-top: 3rem;
+      border: 1px solid var(--cafe-border);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--cafe-border);
+    }
+
+    .cart-header h3 {
+      color: var(--cafe-main);
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .clear-cart-btn {
+      background: rgba(255, 214, 0, 0.1);
+      color: var(--cafe-main);
+      border: 1px solid var(--cafe-main);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .clear-cart-btn:hover {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+    }
+
+    .cart-items {
+      min-height: 100px;
+      margin-bottom: 1.5rem;
+    }
+
+    .empty-cart {
+      text-align: center;
+      color: var(--cafe-text-light);
+      font-style: italic;
+      padding: 2rem;
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .cart-item-info {
+      flex: 1;
+    }
+
+    .cart-item-name {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .cart-item-price {
+      color: var(--cafe-main);
+      font-size: 0.9rem;
+    }
+
+    .cart-item-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .cart-qty-btn {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .cart-item-qty {
+      min-width: 30px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .cart-remove-btn {
+      background: #ff4757;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+
+    .cart-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1.5rem;
+      border-top: 2px solid var(--cafe-border);
+    }
+
+    .cart-total {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--cafe-main);
+    }
+
+    .checkout-btn {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkout-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(255, 214, 0, 0.4);
+    }
+
+    .checkout-btn:disabled {
+      background: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--cafe-card);
+      border-radius: 15px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 2px solid var(--cafe-main);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--cafe-border);
+    }
+
+    .modal-header h3 {
+      color: var(--cafe-main);
+      font-size: 1.3rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--cafe-text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .modal-close:hover {
+      color: var(--cafe-main);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--cafe-main);
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--cafe-border);
+      border-radius: 8px;
+      color: var(--cafe-text);
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--cafe-main);
+      box-shadow: 0 0 0 3px rgba(255, 214, 0, 0.1);
+    }
+
+    /* Payment Methods */
+    .payment-methods {
+      margin: 1.5rem 0;
+    }
+
+    .payment-methods h4 {
+      color: var(--cafe-main);
+      margin-bottom: 1rem;
+    }
+
+    .payment-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .payment-option {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+    }
+
+    .payment-option:hover {
+      border-color: var(--cafe-main);
+    }
+
+    .payment-option input[type="radio"] {
+      margin-right: 0.75rem;
+    }
+
+    .payment-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+    }
+
+    /* Order Summary */
+    .order-summary {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--cafe-border);
+    }
+
+    .order-item:last-child {
+      border-bottom: none;
+    }
+
+    .order-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1rem;
+      margin-top: 1rem;
+      border-top: 2px solid var(--cafe-main);
+      font-size: 1.1rem;
+    }
+
+    /* Button Styles */
+    .btn-primary {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(255, 214, 0, 0.4);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--cafe-text);
+      border: 2px solid var(--cafe-border);
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--cafe-main);
+      color: var(--cafe-main);
+    }
+
+    .modal-footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 1.5rem;
+      border-top: 1px solid var(--cafe-border);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .menu-tabs {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .menu-tab {
+        width: 200px;
+      }
+      
+      .cart-summary {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+      }
+      
+      .modal-footer {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .modal-content {
+        margin: 1rem;
+      }
+      
+      .modal-body {
+        padding: 1rem;
+      }
     }
   </style>
 </body>
