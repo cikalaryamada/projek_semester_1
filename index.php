@@ -32,7 +32,7 @@
   <section class="hero">
     <div class="hero-content">
       <h1>K SIXTEEN CAFE</h1>
-      <p>Tempat nongkrong premium dengan kopi berkualitas, makanan lezat, dan atmosfer yang nyaman. Perfect spot untuk bekerja, berkumpul, atau sekedar bersantai. MANGEAK????</p>
+      <p>Tempat nongkrong premium dengan kopi berkualitas IYA kapan, makanan lezat, dan atmosfer yang nyaman. Perfect spot untuk bekerja, berkumpul, atau sekedar bersantai. MANGEAK????</p>
       <a href="menu.php" class="cta-button">
         <i class="fas fa-shopping-cart"></i>
         Order Sekarang
