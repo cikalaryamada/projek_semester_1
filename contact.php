@@ -116,7 +116,7 @@
         <div class="action-card">
           <i class="fas fa-question-circle"></i>
           <h3>Tanya Jawab</h3>
-          <p>Punya pertanyaan tentang menu, harga, atau fasilitas?</p>
+          <p>Apakah kamu punya pertanyaan tentang menu, harga, atau fasilitas?</p>
           <a href="https://wa.me/6282132384305" class="action-btn" target="_blank">Tanya Sekarang</a>
         </div>
 
@@ -206,7 +206,7 @@
             <i class="fas fa-chevron-down"></i>
           </div>
           <div class="faq-answer">
-            <p>Ya, kami menerima pemesanan untuk acara privat, meeting, atau gathering. Silakan hubungi kami untuk informasi lebih lanjut.</p>
+            <p>Tidak, kami hanya menerima pesanan untuk makan di tempat dan tidak menerima pesanan via.</p>
           </div>
         </div>
       </div>
@@ -277,8 +277,8 @@
           <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
             <i class="fab fa-whatsapp"></i>
           </a>
-          <a href="#" class="social-link">
-            <i class="fab fa-facebook-f"></i>
+          <a href="https://www.tiktok.com/@k16playstation?is_from_webapp=1&sender_device=pc" class="social-link">
+            <i class="fab fa-tiktok-f"></i>
           </a>
         </div>
       </div>

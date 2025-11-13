@@ -1,104 +1,128 @@
 <?php
-// process_contact.php
+// proses_order.php
+header('Content-Type: application/json');
 
-// Database configuration
-$servername = "localhost";
-$username = "root";  // Default XAMPP
-$password = "";      // Default XAMPP (kosong)
-$dbname = "ksixteen_cafe";
+// Koneksi database
+$host = 'localhost';
+$dbname = 'umkmk16';
+$username = 'root';
+$password = '';
 
-// Function to save contact to database
-function save_contact_to_database($name, $email, $phone, $subject, $message) {
-    global $servername, $username, $password, $dbname;
-    
-    try {
-        $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
-        $stmt = $conn->prepare("INSERT INTO contact_messages (name, email, phone, subject, message, created_at) 
-                               VALUES (:name, :email, :phone, :subject, :message, NOW())");
-        
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':phone', $phone);
-        $stmt->bindParam(':subject', $subject);
-        $stmt->bindParam(':message', $message);
-        
-        $stmt->execute();
-        return true;
-    } catch(PDOException $e) {
-        error_log("Database error: " . $e->getMessage());
-        return false;
-    }
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Koneksi database gagal: ' . $e->getMessage()
+    ]);
+    exit;
 }
 
-// Process form data
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Collect and sanitize form data
-    $name = htmlspecialchars(trim($_POST['name']));
-    $email = htmlspecialchars(trim($_POST['email']));
-    $phone = htmlspecialchars(trim($_POST['phone'] ?? ''));
-    $subject = htmlspecialchars(trim($_POST['subject']));
-    $message = htmlspecialchars(trim($_POST['message']));
-    
-    // Validation
-    $errors = [];
-    
-    if (empty($name)) {
-        $errors[] = "Nama lengkap harus diisi";
+// Ambil data dari POST
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
+
+if (!$data) {
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Tidak ada data yang diterima'
+    ]);
+    exit;
+}
+
+// Data dari frontend
+$customer_name = $data['customer_name'] ?? '';
+$table_number = $data['table_number'] ?? '';
+$payment_method = $data['payment_method'] ?? 'cash';
+$cart_items = $data['cart_items'] ?? [];
+
+if (empty($customer_name) || empty($table_number) || empty($cart_items)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Data tidak lengkap'
+    ]);
+    exit;
+}
+
+try {
+    // Mulai transaction
+    $pdo->beginTransaction();
+
+    // 1. Cari atau buat pelanggan baru
+    $stmt = $pdo->prepare("SELECT ID_Pelanggan FROM pelanggan WHERE Nama_Pelanggan = ? LIMIT 1");
+    $stmt->execute([$customer_name]);
+    $pelanggan = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($pelanggan) {
+        $id_pelanggan = $pelanggan['ID_Pelanggan'];
+    } else {
+        $stmt = $pdo->prepare("INSERT INTO pelanggan (Nama_Pelanggan, No_Telp) VALUES (?, '')");
+        $stmt->execute([$customer_name]);
+        $id_pelanggan = $pdo->lastInsertId();
     }
-    
-    if (empty($email)) {
-        $errors[] = "Email harus diisi";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Format email tidak valid";
-    }
-    
-    if (empty($subject)) {
-        $errors[] = "Subjek harus dipilih";
-    }
-    
-    if (empty($message)) {
-        $errors[] = "Pesan harus diisi";
-    }
-    
-    // If no errors, process the form
-    if (empty($errors)) {
-        // Save to database
-        $db_success = save_contact_to_database($name, $email, $phone, $subject, $message);
-        
-        // Send email (optional)
-        $to = "your-email@domain.com"; // Ganti dengan email Anda
-        $email_subject = "Pesan Kontak dari K SIXTEEN CAFE: " . $subject;
-        $email_body = "
-        Anda menerima pesan baru dari website K SIXTEEN CAFE:
-        
-        Nama: $name
-        Email: $email
-        Telepon: " . ($phone ?: 'Tidak diisi') . "
-        Subjek: $subject
-        
-        Pesan:
-        $message
-        
-        ---
-        Pesan ini dikirim dari form kontak website K SIXTEEN CAFE.
-        ";
-        
-        $headers = "From: $email\r\n";
-        $headers .= "Reply-To: $email\r\n";
-        
-        // Uncomment to enable email sending
-        // $email_sent = mail($to, $email_subject, $email_body, $headers);
-        $email_sent = true; // For demo purposes
-        
-        if ($db_success || $email_sent) {
-            $success = true;
-        } else {
-            $errors[] = "Maaf, terjadi kesalahan saat mengirim pesan. Silakan coba lagi.";
+
+    // 2. Ambil penjual pertama sebagai kasir
+    $stmt = $pdo->query("SELECT ID_Penjual FROM penjual LIMIT 1");
+    $penjual = $stmt->fetch(PDO::FETCH_ASSOC);
+    $id_penjual = $penjual ? $penjual['ID_Penjual'] : 1;
+
+    // 3. Generate order ID
+    $order_id = 'ORD' . date('YmdHis') . rand(100, 999);
+
+    // 4. Simpan setiap item transaksi
+    foreach ($cart_items as $item) {
+        // Cek stok tersedia
+        $stmt = $pdo->prepare("SELECT Stok, Nama_Produk FROM produk WHERE ID_Produk = ?");
+        $stmt->execute([$item['id']]);
+        $produk = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$produk) {
+            throw new Exception("Produk tidak ditemukan: ID " . $item['id']);
         }
+
+        if ($produk['Stok'] < $item['quantity']) {
+            throw new Exception("Stok " . $produk['Nama_Produk'] . " tidak cukup. Tersedia: " . $produk['Stok']);
+        }
+
+        // Hitung total harga
+        $total_harga = $item['harga'] * $item['quantity'];
+
+        // Simpan transaksi
+        $stmt = $pdo->prepare("
+            INSERT INTO transaksi_penjualan 
+            (ID_Penjual, ID_Pelanggan, ID_Produk, Tanggal_Transaksi, Metode_Pembayaran, Jumlah_Barang, Total_Harga, Nomor_Meja) 
+            VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            $id_penjual,
+            $id_pelanggan,
+            $item['id'],
+            $payment_method,
+            $item['quantity'],
+            $total_harga,
+            $table_number
+        ]);
+
+        // Stok akan berkurang otomatis oleh trigger
     }
+
+    // Commit transaction
+    $pdo->commit();
+
+    echo json_encode([
+        'success' => true,
+        'order_id' => $order_id,
+        'message' => 'Pesanan berhasil disimpan! Stok telah diperbarui.',
+        'total_items' => count($cart_items)
+    ]);
+
+} catch (Exception $e) {
+    $pdo->rollBack();
+    echo json_encode([
+        'success' => false,
+        'message' => 'Error: ' . $e->getMessage()
+    ]);
 }
 ?>
-
-<!-- Rest of the HTML code remains the same -->
