@@ -1,6 +1,5 @@
 <?php
 // Koneksi database
-// gunakan array berisi tuple kredensial agar bisa di-unpack dengan list(...)
 $configs = [
     ['localhost', 'umkmk16', 'root', '']
 ];
@@ -20,8 +19,6 @@ foreach ($configs as $config) {
 if (!$pdo) {
     die("Koneksi database gagal. Pastikan MySQL berjalan dan database 'umkmk16' sudah diimport.");
 }
-
-// Ambil data menu dari database
 
 // Ambil data menu dari database
 $makanan = $pdo->query("
@@ -58,21 +55,6 @@ $snack = $pdo->query("
   <title>Menu | K SIXTEEN CAFE</title>
   <link href="assets/css/style.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <style>
-    /* VARIABLES dan semua CSS styles tetap sama seperti sebelumnya */
-    :root {
-      --cafe-main: #FFD600;
-      --cafe-dark: #111111;
-      --cafe-bg: #1a1a1a;
-      --cafe-card: #2d2d2d;
-      --cafe-text: #ffffff;
-      --cafe-text-light: #b0b0b0;
-      --cafe-shadow: 0 4px 20px rgba(255, 214, 0, 0.15);
-      --cafe-border: rgba(255, 214, 0, 0.2);
-    }
-
-    /* ... (semua CSS styles tetap sama) ... */
-  </style>
 </head>
 <body>
   <!-- Navigation -->
@@ -306,45 +288,56 @@ $snack = $pdo->query("
 
   <script>
     // Menu Data dari PHP/Database
-// Menu Data dari PHP/Database
-const menuData = {
-  makanan: [
-    <?php foreach ($makanan as $item): ?>
-    {
-      id: <?php echo $item['ID_Produk']; ?>,
-      nama: "<?php echo addslashes($item['Nama_Produk']); ?>",
-      harga: <?php echo $item['Harga']; ?>,
-      stok: <?php echo $item['Stok']; ?>,
-      img: "<?php echo $item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'; ?>",
-      desc: "<?php echo addslashes($item['Nama_Produk']); ?> - Stok: <?php echo $item['Stok']; ?>"
-    },
-    <?php endforeach; ?>
-  ],
-  minuman: [
-    <?php foreach ($minuman as $item): ?>
-    {
-      id: <?php echo $item['ID_Produk']; ?>,
-      nama: "<?php echo addslashes($item['Nama_Produk']); ?>",
-      harga: <?php echo $item['Harga']; ?>,
-      stok: <?php echo $item['Stok']; ?>,
-      img: "<?php echo $item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'; ?>",
-      desc: "<?php echo addslashes($item['Nama_Produk']); ?> - Stok: <?php echo $item['Stok']; ?>"
-    },
-    <?php endforeach; ?>
-  ],
-  snack: [
-    <?php foreach ($snack as $item): ?>
-    {
-      id: <?php echo $item['ID_Produk']; ?>,
-      nama: "<?php echo addslashes($item['Nama_Produk']); ?>",
-      harga: <?php echo $item['Harga']; ?>,
-      stok: <?php echo $item['Stok']; ?>,
-      img: "<?php echo $item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'; ?>",
-      desc: "<?php echo addslashes($item['Nama_Produk']); ?> - Stok: <?php echo $item['Stok']; ?>"
-    },
-    <?php endforeach; ?>
-  ]
-};
+    const menuData = {
+      makanan: [
+        <?php 
+        $makanan_items = [];
+        foreach ($makanan as $item) {
+            $makanan_items[] = "{
+              id: {$item['ID_Produk']},
+              nama: \"".addslashes($item['Nama_Produk'])."\",
+              harga: {$item['Harga']},
+              stok: {$item['Stok']},
+              img: \"".($item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
+              desc: \"".addslashes($item['Nama_Produk'])." - Stok: {$item['Stok']}\"
+            }";
+        }
+        echo implode(',', $makanan_items);
+        ?>
+      ],
+      minuman: [
+        <?php 
+        $minuman_items = [];
+        foreach ($minuman as $item) {
+            $minuman_items[] = "{
+              id: {$item['ID_Produk']},
+              nama: \"".addslashes($item['Nama_Produk'])."\",
+              harga: {$item['Harga']},
+              stok: {$item['Stok']},
+              img: \"".($item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
+              desc: \"".addslashes($item['Nama_Produk'])." - Stok: {$item['Stok']}\"
+            }";
+        }
+        echo implode(',', $minuman_items);
+        ?>
+      ],
+      snack: [
+        <?php 
+        $snack_items = [];
+        foreach ($snack as $item) {
+            $snack_items[] = "{
+              id: {$item['ID_Produk']},
+              nama: \"".addslashes($item['Nama_Produk'])."\",
+              harga: {$item['Harga']},
+              stok: {$item['Stok']},
+              img: \"".($item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
+              desc: \"".addslashes($item['Nama_Produk'])." - Stok: {$item['Stok']}\"
+            }";
+        }
+        echo implode(',', $snack_items);
+        ?>
+      ]
+    };
 
     let cart = [];
     let currentCategory = 'makanan';
@@ -583,7 +576,7 @@ const menuData = {
     }
 
     // Function untuk proses order
-    function processOrder() {
+    async function processOrder() {
       const customerName = document.getElementById('customer-name').value.trim();
       const tableNumber = document.getElementById('table-number').value.trim();
       const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
@@ -593,21 +586,67 @@ const menuData = {
         return;
       }
       
-      // Jika metode pembayaran cash, langsung kirim WhatsApp
-      if (paymentMethod === 'cash') {
-        const orderId = generateOrderId();
-        sendWhatsAppOrder(orderId, customerName, tableNumber, paymentMethod);
-        closeCheckoutModal();
-        clearCart();
-      } 
-      // Jika metode pembayaran transfer, buka modal transfer
-      else if (paymentMethod === 'transfer') {
-        const orderId = generateOrderId();
-        const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-        const uniqueCode = Math.floor(Math.random() * 900) + 100; // Kode unik 3 digit
-        
-        openPaymentModal(orderId, paymentMethod, totalAmount, customerName, tableNumber, uniqueCode);
+      if (cart.length === 0) {
+        alert('Keranjang masih kosong!');
+        return;
       }
+      
+      const orderId = generateOrderId();
+      
+      try {
+        // Tampilkan loading
+        const checkoutBtn = document.querySelector('.btn-primary');
+        const originalText = checkoutBtn.innerHTML;
+        checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+        checkoutBtn.disabled = true;
+        
+        // Kirim data ke server untuk update database
+        const response = await saveOrderToDatabase(orderId, customerName, tableNumber, paymentMethod);
+        
+        if (response.success) {
+          if (paymentMethod === 'cash') {
+            sendWhatsAppOrder(orderId, customerName, tableNumber, paymentMethod, response.total_amount);
+            closeCheckoutModal();
+            clearCart();
+            alert('✅ Order berhasil! Stok telah diperbarui. Silakan lanjutkan konfirmasi via WhatsApp.');
+          } else if (paymentMethod === 'transfer') {
+            const totalAmount = response.total_amount || cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+            const uniqueCode = Math.floor(Math.random() * 900) + 100;
+            openPaymentModal(orderId, paymentMethod, totalAmount, customerName, tableNumber, uniqueCode);
+          }
+        } else {
+          alert('❌ Error: ' + response.message);
+          checkoutBtn.innerHTML = originalText;
+          checkoutBtn.disabled = false;
+        }
+      } catch (error) {
+        alert('❌ Terjadi kesalahan: ' + error.message);
+        const checkoutBtn = document.querySelector('.btn-primary');
+        checkoutBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Lanjutkan Pembayaran';
+        checkoutBtn.disabled = false;
+      }
+    }
+
+    // Function untuk simpan order ke database
+    async function saveOrderToDatabase(orderId, customerName, tableNumber, paymentMethod) {
+      const formData = new FormData();
+      formData.append('action', 'process_order');
+      formData.append('order_id', orderId);
+      formData.append('customer_name', customerName);
+      formData.append('table_number', tableNumber);
+      formData.append('payment_method', paymentMethod);
+      formData.append('cart_items', JSON.stringify(cart));
+      
+      const response = await fetch('process_order.php', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      return await response.json();
     }
 
     // Generate random order ID
@@ -616,25 +655,24 @@ const menuData = {
     }
 
     // Function untuk kirim pesan WhatsApp
-    function sendWhatsAppOrder(orderId, customerName, tableNumber, paymentMethod) {
+    function sendWhatsAppOrder(orderId, customerName, tableNumber, paymentMethod, totalAmount) {
       let message = `Halo K SIXTEEN CAFE! Saya ingin memesan:\n\n`;
       
       cart.forEach(item => {
         message += `• ${item.nama} x${item.quantity} = Rp ${(item.harga * item.quantity).toLocaleString('id-ID')}\n`;
       });
       
-      const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+      const total = totalAmount || cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
       message += `\nTotal: Rp ${total.toLocaleString('id-ID')}`;
       message += `\n\nNama: ${customerName}`;
       message += `\nMeja: ${tableNumber}`;
       message += `\nMetode Bayar: ${getPaymentMethodName(paymentMethod)}`;
-      message += `\n\nOrder ID: #${orderId}`;
+      message += `\nOrder ID: #${orderId}`;
+      message += `\nStatus: Sudah diproses di sistem - Stok otomatis terupdate`;
       message += `\n\nTerima kasih!`;
       
       const whatsappUrl = `https://wa.me/6282132384305?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
-      
-      alert('Pesanan berhasil! Silakan lanjutkan konfirmasi via WhatsApp.');
     }
 
     // Function untuk buka modal pembayaran transfer
@@ -696,14 +734,15 @@ const menuData = {
         // Untuk demo, selalu berhasil
         showPaymentSuccess();
         
-        // Setelah berhasil, kirim pesan WhatsApp
+        // Setelah berhasil, kirim pesan WhatsApp dan clear cart
         setTimeout(() => {
-          sendWhatsAppOrder(currentOrderId, currentCustomerName, currentTableNumber, currentPaymentMethod);
+          const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+          sendWhatsAppOrder(currentOrderId, currentCustomerName, currentTableNumber, currentPaymentMethod, totalAmount);
           closePaymentModal();
           clearCart();
         }, 2000);
         
-      }, 3000); // Simulasi delay verifikasi 3 detik
+      }, 3000);
     }
 
     // Function untuk tampilkan status sukses pembayaran
