@@ -298,7 +298,7 @@ $snack = $pdo->query("
               nama: \"".addslashes($item['Nama_Produk'])."\",
               harga: {$item['Harga']},
               stok: {$item['Stok']},
-              img: \"".($item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
+              img: \"".($item['Gambar'] ? 'admin/assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
               desc: \"".addslashes($item['Nama_Produk'])." - Stok: {$item['Stok']}\"
             }";
         }
@@ -314,7 +314,7 @@ $snack = $pdo->query("
               nama: \"".addslashes($item['Nama_Produk'])."\",
               harga: {$item['Harga']},
               stok: {$item['Stok']},
-              img: \"".($item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
+              img: \"".($item['Gambar'] ? 'admin/assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
               desc: \"".addslashes($item['Nama_Produk'])." - Stok: {$item['Stok']}\"
             }";
         }
@@ -330,7 +330,7 @@ $snack = $pdo->query("
               nama: \"".addslashes($item['Nama_Produk'])."\",
               harga: {$item['Harga']},
               stok: {$item['Stok']},
-              img: \"".($item['Gambar'] ? 'assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
+              img: \"".($item['Gambar'] ? 'admin/assets/images/menu/' . $item['Gambar'] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')."\",
               desc: \"".addslashes($item['Nama_Produk'])." - Stok: {$item['Stok']}\"
             }";
         }

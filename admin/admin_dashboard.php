@@ -39,6 +39,8 @@ if (!$pdo) {
     </div>");
 }
 
+
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Add Product
@@ -49,12 +51,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_kategori = $_POST['id_kategori'];
         $id_supplier = $_POST['id_supplier'];
         
+        // Handle file upload
+        $gambar_produk = '';
+        if (isset($_FILES['gambar_produk']) && $_FILES['gambar_produk']['error'] === 0) {
+            $uploadDir = 'assets/images/menu/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            $fileExtension = pathinfo($_FILES['gambar_produk']['name'], PATHINFO_EXTENSION);
+            $fileName = uniqid() . '_' . strtolower(str_replace(' ', '_', $nama_produk)) . '.' . $fileExtension;
+            $uploadFile = $uploadDir . $fileName;
+            
+            // Check file type
+            $allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            if (in_array(strtolower($fileExtension), $allowedTypes)) {
+                if (move_uploaded_file($_FILES['gambar_produk']['tmp_name'], $uploadFile)) {
+                    $gambar_produk = $fileName;
+                }
+            }
+        }
+        
         if (empty($nama_produk) || empty($harga) || empty($stok)) {
             $_SESSION['error_message'] = "Semua field harus diisi!";
         } else {
             try {
-                $stmt = $pdo->prepare("INSERT INTO produk (Nama_Produk, Harga, Stok, ID_Kategori, ID_Supplier) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$nama_produk, $harga, $stok, $id_kategori, $id_supplier]);
+                if ($gambar_produk) {
+                    $stmt = $pdo->prepare("INSERT INTO produk (Nama_Produk, Harga, Stok, ID_Kategori, ID_Supplier, Gambar) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$nama_produk, $harga, $stok, $id_kategori, $id_supplier, $gambar_produk]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO produk (Nama_Produk, Harga, Stok, ID_Kategori, ID_Supplier) VALUES (?, ?, ?, ?, ?)");
+                    $stmt->execute([$nama_produk, $harga, $stok, $id_kategori, $id_supplier]);
+                }
                 $_SESSION['success_message'] = "✅ Menu <strong>$nama_produk</strong> berhasil ditambahkan!";
             } catch(PDOException $e) {
                 $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
@@ -70,12 +98,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stok = $_POST['stok'];
         $id_kategori = $_POST['id_kategori'];
         
+        // Handle file upload for update
+        $gambar_produk = $_POST['current_gambar'] ?? '';
+        if (isset($_FILES['gambar_produk']) && $_FILES['gambar_produk']['error'] === 0) {
+            $uploadDir = 'assets/images/menu/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            $fileExtension = pathinfo($_FILES['gambar_produk']['name'], PATHINFO_EXTENSION);
+            $fileName = uniqid() . '_' . strtolower(str_replace(' ', '_', $nama_produk)) . '.' . $fileExtension;
+            $uploadFile = $uploadDir . $fileName;
+            
+            $allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            if (in_array(strtolower($fileExtension), $allowedTypes)) {
+                if (move_uploaded_file($_FILES['gambar_produk']['tmp_name'], $uploadFile)) {
+                    // Delete old image if exists
+                    if ($gambar_produk && file_exists($uploadDir . $gambar_produk)) {
+                        unlink($uploadDir . $gambar_produk);
+                    }
+                    $gambar_produk = $fileName;
+                }
+            }
+        }
+        
         if (empty($nama_produk) || empty($harga) || empty($stok)) {
             $_SESSION['error_message'] = "Semua field harus diisi!";
         } else {
             try {
-                $stmt = $pdo->prepare("UPDATE produk SET Nama_Produk = ?, Harga = ?, Stok = ?, ID_Kategori = ? WHERE ID_Produk = ?");
-                if ($stmt->execute([$nama_produk, $harga, $stok, $id_kategori, $id_produk])) {
+                $stmt = $pdo->prepare("UPDATE produk SET Nama_Produk = ?, Harga = ?, Stok = ?, ID_Kategori = ?, Gambar = ? WHERE ID_Produk = ?");
+                if ($stmt->execute([$nama_produk, $harga, $stok, $id_kategori, $gambar_produk, $id_produk])) {
                     $_SESSION['success_message'] = "✅ Menu <strong>$nama_produk</strong> berhasil diupdate!";
                 }
             } catch(PDOException $e) {
@@ -88,8 +140,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_product'])) {
         $id_produk = $_POST['id_produk'];
         $nama_produk = $_POST['nama_produk'];
+        $gambar_produk = $_POST['gambar_produk'] ?? '';
         
         try {
+            // Delete image file if exists
+            if ($gambar_produk) {
+                $imagePath = 'assets/images/menu/' . $gambar_produk;
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
+            }
+            
             $stmt = $pdo->prepare("DELETE FROM produk WHERE ID_Produk = ?");
             if ($stmt->execute([$id_produk])) {
                 $_SESSION['success_message'] = "✅ Menu <strong>$nama_produk</strong> berhasil dihapus!";
@@ -121,36 +182,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_supplier'])) {
         $nama_supplier = trim($_POST['nama_supplier']);
         $alamat = trim($_POST['alamat']);
-        $no_telp = trim($_POST['no_telp']);
         
         if (empty($nama_supplier)) {
             $_SESSION['error_message'] = "Nama supplier harus diisi!";
         } else {
             try {
-                $stmt = $pdo->prepare("INSERT INTO supplier (Nama_Supplier, Alamat, No_Telp) VALUES (?, ?, ?)");
-                if ($stmt->execute([$nama_supplier, $alamat, $no_telp])) {
+                $stmt = $pdo->prepare("INSERT INTO supplier (Nama_Supplier, Alamat) VALUES (?, ?)");
+                if ($stmt->execute([$nama_supplier, $alamat])) {
                     $_SESSION['success_message'] = "✅ Supplier <strong>$nama_supplier</strong> berhasil ditambahkan!";
-                }
-            } catch(PDOException $e) {
-                $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
-            }
-        }
-    }
-    
-    // Add Penjual
-    if (isset($_POST['add_penjual'])) {
-        $nama_karyawan = trim($_POST['nama_karyawan']);
-        $alamat = trim($_POST['alamat']);
-        $no_telp = trim($_POST['no_telp']);
-        $email = trim($_POST['email']);
-        
-        if (empty($nama_karyawan)) {
-            $_SESSION['error_message'] = "Nama karyawan harus diisi!";
-        } else {
-            try {
-                $stmt = $pdo->prepare("INSERT INTO penjual (Nama_Karyawan, Alamat, No_Telp, Email) VALUES (?, ?, ?, ?)");
-                if ($stmt->execute([$nama_karyawan, $alamat, $no_telp, $email])) {
-                    $_SESSION['success_message'] = "✅ Karyawan <strong>$nama_karyawan</strong> berhasil ditambahkan!";
                 }
             } catch(PDOException $e) {
                 $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
@@ -189,7 +228,7 @@ $recent_transactions = $pdo->query("
 
 // Ambil produk terlaris
 $best_sellers = $pdo->query("
-    SELECT pr.Nama_Produk, SUM(t.Jumlah_Barang) as total_terjual
+    SELECT pr.Nama_Produk, pr.Gambar, SUM(t.Jumlah_Barang) as total_terjual
     FROM transaksi_penjualan t
     JOIN produk pr ON t.ID_Produk = pr.ID_Produk
     GROUP BY t.ID_Produk
@@ -209,7 +248,6 @@ $products = $pdo->query("
 // Ambil categories dan suppliers
 $categories = $pdo->query("SELECT * FROM kategori")->fetchAll(PDO::FETCH_ASSOC);
 $suppliers = $pdo->query("SELECT * FROM supplier")->fetchAll(PDO::FETCH_ASSOC);
-$penjual = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
 
 // Ambil semua transaksi
 $all_transactions = $pdo->query("
@@ -230,10 +268,6 @@ $all_transactions = $pdo->query("
 
 // Ambil semua pelanggan
 $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetchAll(PDO::FETCH_ASSOC);
-
-// Ambil log data
-$log_pelanggan = $pdo->query("SELECT * FROM log_pelanggan ORDER BY waktu DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
-$log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -244,7 +278,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
   <title>Admin Dashboard | K SIXTEEN CAFE</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    /* CSS Styles tetap sama seperti sebelumnya */
+    /* ===== VARIABLES ===== */
     :root {
       --cafe-main: #FFD600;
       --cafe-dark: #111111;
@@ -261,6 +295,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
       --info: #3742fa;
     }
 
+    /* ===== RESET & BASE STYLES ===== */
     * {
       margin: 0;
       padding: 0;
@@ -307,13 +342,12 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
       border-radius: 50%;
       overflow: hidden;
       border: 2px solid var(--cafe-main);
-      background: var(--cafe-main);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--cafe-dark);
-      font-weight: bold;
-      font-size: 1.2rem;
+    }
+
+    .sidebar-logo-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .sidebar-logo-text {
@@ -344,7 +378,6 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
       text-decoration: none;
       transition: all 0.3s ease;
       border-left: 4px solid transparent;
-      cursor: pointer;
     }
 
     .menu-item:hover {
@@ -363,6 +396,10 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
       width: 20px;
       text-align: center;
       font-size: 1.1rem;
+    }
+
+    .menu-text {
+      font-weight: 500;
     }
 
     .logout-section {
@@ -597,6 +634,70 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
       background: rgba(255, 255, 255, 0.15);
     }
 
+    .file-upload {
+      border: 2px dashed var(--cafe-border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .file-upload:hover {
+      border-color: var(--cafe-main);
+      background: rgba(255, 214, 0, 0.05);
+    }
+
+    .file-upload i {
+      font-size: 2rem;
+      color: var(--cafe-main);
+      margin-bottom: 1rem;
+    }
+
+    .file-upload input {
+      display: none;
+    }
+
+    .image-preview {
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .image-preview img {
+      max-width: 200px;
+      max-height: 150px;
+      border-radius: 8px;
+      border: 2px solid var(--cafe-border);
+    }
+
+    .current-image {
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .current-image img {
+      max-width: 150px;
+      max-height: 100px;
+      border-radius: 8px;
+      border: 2px solid var(--cafe-border);
+    }
+
+    .product-image {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid var(--cafe-border);
+    }
+
+    .product-image-small {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--cafe-border);
+    }
+
     .form-actions {
       display: flex;
       gap: 1rem;
@@ -728,10 +829,15 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
       gap: 1rem;
     }
 
+    .admin-actions {
+      margin-bottom: 2rem;
+    }
+
     .payment-cash { background: var(--success); color: white; }
     .payment-qris { background: var(--info); color: white; }
     .payment-transfer { background: var(--warning); color: white; }
 
+    /* Mobile Menu Toggle */
     .menu-toggle {
       display: none;
       position: fixed;
@@ -828,7 +934,9 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
   <div class="admin-sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">
-        <div class="sidebar-logo-image">KS</div>
+        <div class="sidebar-logo-image">
+          <img src="assets/images/logo.jpg" alt="K SIXTEEN CAFE" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjRkZENjAwIi8+Cjx0ZXh0IHg9IjI1IiB5PSIzMCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iYm9sZCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzExMTExMSI+S1M8L3RleHQ+Cjwvc3ZnPgo='">
+        </div>
         <div class="sidebar-logo-text">K SIXTEEN CAFE</div>
       </div>
       <div class="admin-welcome">
@@ -839,35 +947,31 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
     <div class="sidebar-menu">
       <a href="#" class="menu-item active" data-section="dashboard">
         <i class="fas fa-tachometer-alt"></i>
-        <span>Dashboard</span>
+        <span class="menu-text">Dashboard</span>
       </a>
       <a href="#" class="menu-item" data-section="products">
         <i class="fas fa-coffee"></i>
-        <span>Menu Management</span>
+        <span class="menu-text">Menu Management</span>
       </a>
       <a href="#" class="menu-item" data-section="transactions">
         <i class="fas fa-receipt"></i>
-        <span>Transactions</span>
+        <span class="menu-text">Transactions</span>
       </a>
       <a href="#" class="menu-item" data-section="customers">
         <i class="fas fa-users"></i>
-        <span>Customers</span>
+        <span class="menu-text">Customers</span>
       </a>
       <a href="#" class="menu-item" data-section="suppliers">
         <i class="fas fa-truck"></i>
-        <span>Suppliers</span>
+        <span class="menu-text">Suppliers</span>
       </a>
       <a href="#" class="menu-item" data-section="categories">
         <i class="fas fa-tags"></i>
-        <span>Categories</span>
+        <span class="menu-text">Categories</span>
       </a>
-      <a href="#" class="menu-item" data-section="penjual">
-        <i class="fas fa-user-tie"></i>
-        <span>Sales Staff</span>
-      </a>
-      <a href="#" class="menu-item" data-section="logs">
-        <i class="fas fa-history"></i>
-        <span>Activity Logs</span>
+      <a href="../menu.php" class="menu-item" target="_blank">
+        <i class="fas fa-external-link-alt"></i>
+        <span class="menu-text">View Frontend</span>
       </a>
     </div>
 
@@ -984,13 +1088,14 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
               <thead>
                 <tr>
                   <th>Product</th>
+                  <th>Image</th>
                   <th>Sold</th>
                 </tr>
               </thead>
               <tbody>
                 <?php if (empty($best_sellers)): ?>
                   <tr>
-                    <td colspan="2" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                    <td colspan="3" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
                       <i class="fas fa-chart-bar"></i> No sales data
                     </td>
                   </tr>
@@ -998,6 +1103,13 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                   <?php foreach ($best_sellers as $item): ?>
                   <tr>
                     <td><?php echo $item['Nama_Produk']; ?></td>
+                    <td>
+                      <?php if ($item['Gambar']): ?>
+                        <img src="assets/images/menu/<?php echo $item['Gambar']; ?>" alt="<?php echo $item['Nama_Produk']; ?>" class="product-image-small" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMmQyZDJkIi8+Cjx0ZXh0IHg9IjIwIiB5PSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjYjBiMGIwIj5JbWFnZTwvdGV4dD4KPC9zdmc+Cg=='">
+                      <?php else: ?>
+                        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMmQyZDJkIi8+Cjx0ZXh0IHg9IjIwIiB5PSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjYjBiMGIwIj5JbWFnZTwvdGV4dD4KPC9zdmc+Cg==" alt="Default" class="product-image-small">
+                      <?php endif; ?>
+                    </td>
                     <td><span class="badge"><?php echo $item['total_terjual']; ?> pcs</span></td>
                   </tr>
                   <?php endforeach; ?>
@@ -1023,7 +1135,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
         <!-- Add Product Form -->
         <div id="addProductForm" class="form-container" style="display: none;">
           <h3 style="color: var(--cafe-main); margin-bottom: 1.5rem;">➕ Add New Menu Item</h3>
-          <form method="POST">
+          <form method="POST" enctype="multipart/form-data">
             <div class="form-row">
               <div class="form-group">
                 <label for="nama_produk">Product Name *</label>
@@ -1049,14 +1161,25 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 </select>
               </div>
             </div>
-            <div class="form-group">
-              <label for="id_supplier">Supplier *</label>
-              <select id="id_supplier" name="id_supplier" required>
-                <option value="">Select Supplier</option>
-                <?php foreach ($suppliers as $supplier): ?>
-                  <option value="<?php echo $supplier['ID_Supplier']; ?>"><?php echo $supplier['Nama_Supplier']; ?></option>
-                <?php endforeach; ?>
-              </select>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="id_supplier">Supplier</label>
+                <select id="id_supplier" name="id_supplier">
+                  <option value="">Select Supplier</option>
+                  <?php foreach ($suppliers as $supplier): ?>
+                    <option value="<?php echo $supplier['ID_Supplier']; ?>"><?php echo $supplier['Nama_Supplier']; ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Product Image</label>
+                <div class="file-upload" onclick="document.getElementById('add_gambar_produk').click()">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <p>Click to upload image</p>
+                  <input type="file" id="add_gambar_produk" name="gambar_produk" accept="image/*" onchange="previewAddImage(this)">
+                </div>
+                <div id="addImagePreview" class="image-preview"></div>
+              </div>
             </div>
             <div class="form-actions">
               <button type="submit" name="add_product" class="btn btn-success">
@@ -1072,8 +1195,9 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
         <!-- Edit Product Form -->
         <div id="editProductForm" class="form-container" style="display: none;">
           <h3 style="color: var(--cafe-main); margin-bottom: 1.5rem;">✏️ Edit Menu Item</h3>
-          <form method="POST">
+          <form method="POST" enctype="multipart/form-data">
             <input type="hidden" id="edit_id_produk" name="id_produk">
+            <input type="hidden" id="edit_current_gambar" name="current_gambar">
             <div class="form-row">
               <div class="form-group">
                 <label for="edit_nama_produk">Product Name *</label>
@@ -1099,6 +1223,16 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 </select>
               </div>
             </div>
+            <div class="form-group">
+              <label>Product Image</label>
+              <div id="editCurrentImage" class="current-image"></div>
+              <div class="file-upload" onclick="document.getElementById('edit_gambar_produk').click()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Click to upload new image</p>
+                <input type="file" id="edit_gambar_produk" name="gambar_produk" accept="image/*" onchange="previewEditImage(this)">
+              </div>
+              <div id="editImagePreview" class="image-preview"></div>
+            </div>
             <div class="form-actions">
               <button type="submit" name="update_product" class="btn btn-success">
                 <i class="fas fa-save"></i> Update Product
@@ -1116,7 +1250,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Image</th>
                 <th>Product Name</th>
                 <th>Price</th>
                 <th>Stock</th>
@@ -1135,8 +1269,14 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
               <?php else: ?>
                 <?php foreach ($products as $product): ?>
                 <tr>
-                  <td><strong>#<?php echo $product['ID_Produk']; ?></strong></td>
-                  <td><?php echo $product['Nama_Produk']; ?></td>
+                  <td>
+                    <?php if ($product['Gambar']): ?>
+                      <img src="assets/images/menu/<?php echo $product['Gambar']; ?>" alt="<?php echo $product['Nama_Produk']; ?>" class="product-image" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjMmQyZDJkIi8+Cjx0ZXh0IHg9IjMwIiB5PSIzNSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjYjBiMGIwIj5JbWFnZTwvdGV4dD4KPC9zdmc+Cg=='">
+                    <?php else: ?>
+                      <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjMmQyZDJkIi8+Cjx0ZXh0IHg9IjMwIiB5PSIzNSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjYjBiMGIwIj5JbWFnZTwvdGV4dD4KPC9zdmc+Cg==" alt="Default" class="product-image">
+                    <?php endif; ?>
+                  </td>
+                  <td><strong><?php echo $product['Nama_Produk']; ?></strong></td>
                   <td>Rp <?php echo number_format($product['Harga'], 0, ',', '.'); ?></td>
                   <td>
                     <span class="badge <?php echo $product['Stok'] > 10 ? 'success' : ($product['Stok'] > 0 ? 'warning' : 'danger'); ?>">
@@ -1144,15 +1284,16 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                     </span>
                   </td>
                   <td><?php echo $product['Nama_Kategori']; ?></td>
-                  <td><?php echo $product['Nama_Supplier']; ?></td>
+                  <td><?php echo $product['Nama_Supplier'] ?? '-'; ?></td>
                   <td>
                     <div class="action-buttons">
-                      <button class="action-btn edit" onclick="editProduct(<?php echo $product['ID_Produk']; ?>, '<?php echo addslashes($product['Nama_Produk']); ?>', <?php echo $product['Harga']; ?>, <?php echo $product['Stok']; ?>, <?php echo $product['ID_Kategori']; ?>)">
+                      <button class="action-btn edit" onclick="editProduct(<?php echo $product['ID_Produk']; ?>, '<?php echo addslashes($product['Nama_Produk']); ?>', <?php echo $product['Harga']; ?>, <?php echo $product['Stok']; ?>, <?php echo $product['ID_Kategori']; ?>, '<?php echo $product['Gambar']; ?>')">
                         <i class="fas fa-edit"></i>
                       </button>
                       <form method="POST" style="display: inline;">
                         <input type="hidden" name="id_produk" value="<?php echo $product['ID_Produk']; ?>">
                         <input type="hidden" name="nama_produk" value="<?php echo $product['Nama_Produk']; ?>">
+                        <input type="hidden" name="gambar_produk" value="<?php echo $product['Gambar']; ?>">
                         <button type="submit" name="delete_product" class="action-btn delete" onclick="return confirm('Are you sure you want to delete <?php echo addslashes($product['Nama_Produk']); ?>?')">
                           <i class="fas fa-trash"></i>
                         </button>
@@ -1185,18 +1326,16 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 <th>Customer</th>
                 <th>Product</th>
                 <th>Category</th>
-                <th>Qty</th>
+                <th>Quantity</th>
                 <th>Total</th>
                 <th>Date</th>
-                <th>Payment</th>
-                <th>Table</th>
                 <th>Seller</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($all_transactions)): ?>
                 <tr>
-                  <td colspan="10" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                  <td colspan="8" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
                     <i class="fas fa-receipt"></i> No transactions found
                   </td>
                 </tr>
@@ -1210,17 +1349,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                   <td><?php echo $transaction['Jumlah_Barang']; ?> pcs</td>
                   <td><span class="badge success">Rp <?php echo number_format($transaction['Total_Harga'], 0, ',', '.'); ?></span></td>
                   <td><?php echo date('M d, Y H:i', strtotime($transaction['Tanggal_Transaksi'])); ?></td>
-                  <td>
-                    <span class="badge <?php 
-                      if ($transaction['Metode_Pembayaran'] == 'Cash') echo 'payment-cash';
-                      elseif ($transaction['Metode_Pembayaran'] == 'QRIS') echo 'payment-qris';
-                      else echo 'payment-transfer';
-                    ?>">
-                      <?php echo $transaction['Metode_Pembayaran']; ?>
-                    </span>
-                  </td>
-                  <td><?php echo $transaction['Nomor_Meja'] ?? '-'; ?></td>
-                  <td><?php echo $transaction['Nama_Karyawan']; ?></td>
+                  <td><?php echo $transaction['Nama_Karyawan'] ?? '-'; ?></td>
                 </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -1245,14 +1374,16 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
               <tr>
                 <th>ID</th>
                 <th>Name</th>
-                <th>Address</th>
+                <th>Email</th>
                 <th>Phone</th>
+                <th>Address</th>
+                <th>Registration Date</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($customers)): ?>
                 <tr>
-                  <td colspan="4" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                  <td colspan="6" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
                     <i class="fas fa-users"></i> No customers found
                   </td>
                 </tr>
@@ -1261,8 +1392,10 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 <tr>
                   <td><strong>#<?php echo $customer['ID_Pelanggan']; ?></strong></td>
                   <td><?php echo $customer['Nama_Pelanggan']; ?></td>
-                  <td><?php echo $customer['Alamat'] ?? '-'; ?></td>
-                  <td><?php echo $customer['No_Telp'] ?? '-'; ?></td>
+                  <td><?php echo $customer['Email_Pelanggan'] ?? '-'; ?></td>
+                  <td><?php echo $customer['No_Telepon_Pelanggan'] ?? '-'; ?></td>
+                  <td><?php echo $customer['Alamat_Pelanggan'] ?? '-'; ?></td>
+                  <td><?php echo date('M d, Y', strtotime($customer['Tanggal_Registrasi'])); ?></td>
                 </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -1293,13 +1426,9 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 <input type="text" id="nama_supplier" name="nama_supplier" required>
               </div>
               <div class="form-group">
-                <label for="no_telp">Phone</label>
-                <input type="text" id="no_telp" name="no_telp">
+                <label for="alamat">Address</label>
+                <textarea id="alamat" name="alamat" rows="3"></textarea>
               </div>
-            </div>
-            <div class="form-group">
-              <label for="alamat">Address</label>
-              <textarea id="alamat" name="alamat" rows="3"></textarea>
             </div>
             <div class="form-actions">
               <button type="submit" name="add_supplier" class="btn btn-success">
@@ -1321,7 +1450,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 <th>ID</th>
                 <th>Name</th>
                 <th>Address</th>
-                <th>Phone</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1337,7 +1466,13 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                   <td><strong>#<?php echo $supplier['ID_Supplier']; ?></strong></td>
                   <td><?php echo $supplier['Nama_Supplier']; ?></td>
                   <td><?php echo $supplier['Alamat'] ?? '-'; ?></td>
-                  <td><?php echo $supplier['No_Telp'] ?? '-'; ?></td>
+                  <td>
+                    <div class="action-buttons">
+                      <button class="action-btn delete" onclick="if(confirm('Delete <?php echo addslashes($supplier['Nama_Supplier']); ?>?')) { /* Add delete functionality here */ }">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -1385,12 +1520,13 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
               <tr>
                 <th>ID</th>
                 <th>Name</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($categories)): ?>
                 <tr>
-                  <td colspan="2" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                  <td colspan="3" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
                     <i class="fas fa-tags"></i> No categories found
                   </td>
                 </tr>
@@ -1399,203 +1535,37 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
                 <tr>
                   <td><strong>#<?php echo $category['ID_Kategori']; ?></strong></td>
                   <td><?php echo $category['Nama_Kategori']; ?></td>
-                </tr>
-                <?php endforeach; ?>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Penjual Section -->
-      <div id="penjual" class="admin-section">
-        <div class="main-header">
-          <div>
-            <h1 class="page-title">👨‍💼 Sales Staff</h1>
-            <p class="page-subtitle">Manage sales staff information</p>
-          </div>
-          <button class="btn btn-primary" onclick="showAddPenjualForm()">
-            <i class="fas fa-plus"></i> Add Staff
-          </button>
-        </div>
-
-        <!-- Add Penjual Form -->
-        <div id="addPenjualForm" class="form-container" style="display: none;">
-          <h3 style="color: var(--cafe-main); margin-bottom: 1.5rem;">➕ Add New Staff</h3>
-          <form method="POST">
-            <div class="form-row">
-              <div class="form-group">
-                <label for="nama_karyawan">Staff Name *</label>
-                <input type="text" id="nama_karyawan" name="nama_karyawan" required>
-              </div>
-              <div class="form-group">
-                <label for="no_telp">Phone</label>
-                <input type="text" id="no_telp" name="no_telp">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email">
-              </div>
-              <div class="form-group">
-                <label for="alamat">Address</label>
-                <input type="text" id="alamat" name="alamat">
-              </div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" name="add_penjual" class="btn btn-success">
-                <i class="fas fa-save"></i> Save Staff
-              </button>
-              <button type="button" class="btn btn-secondary" onclick="hideAddPenjualForm()">
-                <i class="fas fa-times"></i> Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Penjual Table -->
-        <div class="recent-table">
-          <h3><i class="fas fa-user-tie"></i> All Sales Staff</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Address</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php if (empty($penjual)): ?>
-                <tr>
-                  <td colspan="5" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
-                    <i class="fas fa-user-tie"></i> No staff found
+                  <td>
+                    <div class="action-buttons">
+                      <button class="action-btn delete" onclick="if(confirm('Delete <?php echo addslashes($category['Nama_Kategori']); ?>?')) { /* Add delete functionality here */ }">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              <?php else: ?>
-                <?php foreach ($penjual as $staff): ?>
-                <tr>
-                  <td><strong>#<?php echo $staff['ID_Penjual']; ?></strong></td>
-                  <td><?php echo $staff['Nama_Karyawan']; ?></td>
-                  <td><?php echo $staff['Email'] ?? '-'; ?></td>
-                  <td><?php echo $staff['No_Telp'] ?? '-'; ?></td>
-                  <td><?php echo $staff['Alamat'] ?? '-'; ?></td>
-                </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- Logs Section -->
-      <div id="logs" class="admin-section">
-        <div class="main-header">
-          <div>
-            <h1 class="page-title">📋 Activity Logs</h1>
-            <p class="page-subtitle">Monitor system activities and changes</p>
-          </div>
-        </div>
-
-        <div class="dashboard-grid">
-          <div class="recent-table">
-            <h3><i class="fas fa-users"></i> Customer Activity Logs</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Action</th>
-                  <th>Customer</th>
-                  <th>Changes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php if (empty($log_pelanggan)): ?>
-                  <tr>
-                    <td colspan="4" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
-                      <i class="fas fa-info-circle"></i> No customer logs
-                    </td>
-                  </tr>
-                <?php else: ?>
-                  <?php foreach ($log_pelanggan as $log): ?>
-                  <tr>
-                    <td><?php echo date('M d, Y H:i', strtotime($log['waktu'])); ?></td>
-                    <td>
-                      <span class="badge <?php echo $log['aksi'] == 'INSERT' ? 'success' : ($log['aksi'] == 'UPDATE' ? 'warning' : 'danger'); ?>">
-                        <?php echo $log['aksi']; ?>
-                      </span>
-                    </td>
-                    <td><?php echo $log['nama_pelanggan']; ?></td>
-                    <td>
-                      <?php if ($log['aksi'] == 'UPDATE'): ?>
-                        Address: <?php echo $log['alamat_lama'] ?? 'NULL'; ?> → <?php echo $log['alamat_baru'] ?? 'NULL'; ?><br>
-                        Phone: <?php echo $log['no_telp_lama'] ?? 'NULL'; ?> → <?php echo $log['no_telp_baru'] ?? 'NULL'; ?>
-                      <?php elseif ($log['aksi'] == 'INSERT'): ?>
-                        New customer added
-                      <?php else: ?>
-                        Customer deleted
-                      <?php endif; ?>
-                    </td>
-                  </tr>
-                  <?php endforeach; ?>
-                <?php endif; ?>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="recent-table">
-            <h3><i class="fas fa-exchange-alt"></i> Transaction Logs</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Action</th>
-                  <th>Product ID</th>
-                  <th>Stock Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php if (empty($log_transaksi)): ?>
-                  <tr>
-                    <td colspan="4" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
-                      <i class="fas fa-info-circle"></i> No transaction logs
-                    </td>
-                  </tr>
-                <?php else: ?>
-                  <?php foreach ($log_transaksi as $log): ?>
-                  <tr>
-                    <td><?php echo date('M d, Y H:i', strtotime($log['waktu'])); ?></td>
-                    <td>
-                      <span class="badge <?php echo strpos($log['aksi'], 'PENJUALAN') !== false ? 'success' : 'info'; ?>">
-                        <?php echo $log['aksi']; ?>
-                      </span>
-                    </td>
-                    <td>#<?php echo $log['id_produk']; ?></td>
-                    <td><?php echo $log['stok_sebelum']; ?> → <?php echo $log['stok_sesudah']; ?></td>
-                  </tr>
-                  <?php endforeach; ?>
-                <?php endif; ?>
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>
   </div>
 
 <script>
-    // Navigation between sections
+    // Navigation between sections - FIXED VERSION
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize first section
         showSection('dashboard');
         
+        // Add click events to all menu items
         document.querySelectorAll('.menu-item[data-section]').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 const sectionId = this.getAttribute('data-section');
                 showSection(sectionId);
                 
+                // Close sidebar on mobile
                 if (window.innerWidth <= 768) {
                     toggleSidebar();
                 }
@@ -1604,18 +1574,24 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
     });
 
     function showSection(sectionId) {
+        console.log('Showing section:', sectionId); // Debug log
+        
+        // Remove active class from all links and sections
         document.querySelectorAll('.menu-item').forEach(l => l.classList.remove('active'));
         document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
         
+        // Add active class to clicked link and corresponding section
         const activeLink = document.querySelector(`.menu-item[data-section="${sectionId}"]`);
         const activeSection = document.getElementById(sectionId);
         
         if (activeLink) activeLink.classList.add('active');
         if (activeSection) activeSection.classList.add('active');
         
+        // Update page title based on section
         updatePageTitle(sectionId);
     }
 
+    // Update page title based on active section
     function updatePageTitle(section) {
         const titles = {
             'dashboard': '📊 Dashboard Overview',
@@ -1623,9 +1599,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
             'transactions': '💰 Transactions',
             'customers': '👥 Customers',
             'suppliers': '🚚 Suppliers',
-            'categories': '🏷️ Categories',
-            'penjual': '👨‍💼 Sales Staff',
-            'logs': '📋 Activity Logs'
+            'categories': '🏷️ Categories'
         };
         
         const pageTitle = document.querySelector('.page-title');
@@ -1634,6 +1608,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
         }
     }
 
+    // Toggle sidebar for mobile
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('active');
@@ -1648,6 +1623,7 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
 
     function hideAddForm() {
         document.getElementById('addProductForm').style.display = 'none';
+        document.getElementById('addImagePreview').innerHTML = '';
     }
 
     function showEditForm() {
@@ -1658,15 +1634,56 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
 
     function hideEditForm() {
         document.getElementById('editProductForm').style.display = 'none';
+        document.getElementById('editImagePreview').innerHTML = '';
     }
 
-    function editProduct(id, nama, harga, stok, kategori) {
+    function editProduct(id, nama, harga, stok, kategori, gambar) {
         document.getElementById('edit_id_produk').value = id;
         document.getElementById('edit_nama_produk').value = nama;
         document.getElementById('edit_harga').value = harga;
         document.getElementById('edit_stok').value = stok;
         document.getElementById('edit_id_kategori').value = kategori;
+        document.getElementById('edit_current_gambar').value = gambar;
+        
+        // Show current image
+        const currentImageDiv = document.getElementById('editCurrentImage');
+        if (gambar) {
+            currentImageDiv.innerHTML = `
+                <p>Current Image:</p>
+                <img src="assets/images/menu/${gambar}" alt="${nama}" onerror="this.style.display='none'">
+            `;
+        } else {
+            currentImageDiv.innerHTML = '<p>No image uploaded</p>';
+        }
+        
         showEditForm();
+    }
+
+    // Image preview functions
+    function previewAddImage(input) {
+        const preview = document.getElementById('addImagePreview');
+        preview.innerHTML = '';
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function previewEditImage(input) {
+        const preview = document.getElementById('editImagePreview');
+        preview.innerHTML = '';
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
     }
 
     // Supplier Management Functions
@@ -1689,16 +1706,6 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
         document.getElementById('addCategoryForm').style.display = 'none';
     }
 
-    // Penjual Management Functions
-    function showAddPenjualForm() {
-        document.getElementById('addPenjualForm').style.display = 'block';
-        window.scrollTo({ top: document.getElementById('addPenjualForm').offsetTop - 100, behavior: 'smooth' });
-    }
-
-    function hideAddPenjualForm() {
-        document.getElementById('addPenjualForm').style.display = 'none';
-    }
-
     // Auto-hide messages after 5 seconds
     setTimeout(() => {
         const alerts = document.querySelectorAll('.alert');
@@ -1706,6 +1713,31 @@ $log_transaksi = $pdo->query("SELECT * FROM log_transaksi ORDER BY waktu DESC LI
             alert.style.display = 'none';
         });
     }, 5000);
+
+    // Form validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const requiredFields = form.querySelectorAll('[required]');
+                let valid = true;
+                
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        valid = false;
+                        field.style.borderColor = '#ff4757';
+                    } else {
+                        field.style.borderColor = '';
+                    }
+                });
+                
+                if (!valid) {
+                    e.preventDefault();
+                    alert('Please fill in all required fields!');
+                }
+            });
+        });
+    });
 
     // Close sidebar when clicking outside on mobile
     document.addEventListener('click', function(e) {

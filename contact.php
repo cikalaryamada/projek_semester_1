@@ -213,55 +213,7 @@
     </div>
   </section>
 
-  <!-- Contact Form Section -->
-  <section class="contact-form-section">
-    <div class="container">
-      <div class="form-container">
-        <h2 class="section-title">Kirim Pesan kepada Kami</h2>
-        <p class="section-subtitle">Punya pertanyaan atau saran? Isi form berikut dan kami akan membalas secepatnya</p>
-        
-        <form class="contact-form" id="contactForm" method="POST" action="process_contact.php">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="name">Nama Lengkap *</label>
-              <input type="text" id="name" name="name" required placeholder="Masukkan nama lengkap Anda">
-            </div>
-            <div class="form-group">
-              <label for="email">Email *</label>
-              <input type="email" id="email" name="email" required placeholder="Masukkan alamat email Anda">
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="phone">Nomor Telepon</label>
-            <input type="tel" id="phone" name="phone" placeholder="Masukkan nomor telepon (opsional)">
-          </div>
-          
-          <div class="form-group">
-            <label for="subject">Subjek *</label>
-            <select id="subject" name="subject" required>
-              <option value="">Pilih subjek pesan</option>
-              <option value="pertanyaan">Pertanyaan Umum</option>
-              <option value="reservasi">Reservasi Meja</option>
-              <option value="kerjasama">Kerjasama Bisnis</option>
-              <option value="keluhan">Keluhan/Kritik</option>
-              <option value="saran">Saran</option>
-              <option value="lainnya">Lainnya</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label for="message">Pesan *</label>
-            <textarea id="message" name="message" rows="5" required placeholder="Tulis pesan Anda di sini..."></textarea>
-          </div>
-          
-          <button type="submit" class="submit-btn">
-            <i class="fas fa-paper-plane"></i> Kirim Pesan
-          </button>
-        </form>
-      </div>
-    </div>
-  </section>
+
 
   <!-- Footer -->
   <footer class="footer">
