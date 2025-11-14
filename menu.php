@@ -206,7 +206,7 @@ $snack = $pdo->query("
                   <i class="fas fa-university"></i>
                 </div>
                 <div class="bank-info">
-                  <h5>BCA - 1234567890</h5>
+                  <h5>BCA - 923809042893</h5>
                   <p>a.n. K SIXTEEN CAFE</p>
                 </div>
               </div>
@@ -276,7 +276,7 @@ $snack = $pdo->query("
             <i class="fab fa-instagram"></i>
           </a>
           <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
-            <i class="fab fa-whatsapp"></i>
+            <i class="3"></i>
           </a>
           <a href="https://www.tiktok.com/@k16playstation" class="social-link" target="_blank">
             <i class="fab fa-tiktok-f"></i>
