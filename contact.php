@@ -229,7 +229,7 @@
           <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
             <i class="fab fa-whatsapp"></i>
           </a>
-          <a href="https://www.tiktok.com/@k16playstation?is_from_webapp=1&sender_device=pc" class="social-link">
+          <a href="https://www.tiktok.com/@k16playstation?is_from_webapp=1&sender_device=pc" class="social-link" target="_blank">
             <i class="fab fa-tiktok-f"></i>
           </a>
         </div>
