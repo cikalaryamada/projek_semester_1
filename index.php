@@ -32,7 +32,7 @@
   <section class="hero">
     <div class="hero-content">
       <h1>K SIXTEEN CAFE</h1>
-      <p>Tempat nongkrong premium dengan kopi berkualitas IYEKEE?$_COOKIE, makanan lezat, dan atmosfer yang nyaman. Perfect spot untuk bekerja, berkumpul, atau sekedar bersantai.</p>
+      <p>Tempat nongkrong premium dengan kopi berkualitas, makanan lezat, dan atmosfer yang nyaman. Perfect spot untuk bekerja, berkumpul, atau sekedar bersantai.</p>
       <a href="menu.php" class="cta-button">
         <i class="fas fa-shopping-cart"></i>
         Order Sekarang
@@ -85,8 +85,8 @@
           <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
             <i class="fab fa-whatsapp"></i>
           </a>
-          <a href="#" class="social-link">
-            <i class="fab fa-facebook-f"></i>
+          <a href="https://www.tiktok.com/@k16playstation" class="social-link" target="_blank">
+            <i class="fab fa-tiktok"></i>
           </a>
         </div>
       </div>

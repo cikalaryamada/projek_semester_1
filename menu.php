@@ -276,10 +276,10 @@ $snack = $pdo->query("
             <i class="fab fa-instagram"></i>
           </a>
           <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
-            <i class="3"></i>
+            <i class="fab fa-whatsapp"></i>
           </a>
           <a href="https://www.tiktok.com/@k16playstation" class="social-link" target="_blank">
-            <i class="fab fa-tiktok-f"></i>
+            <i class="fab fa-tiktok"></i>
           </a>
         </div>
       </div>

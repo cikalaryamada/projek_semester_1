@@ -232,8 +232,8 @@
           <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
             <i class="fab fa-whatsapp"></i>
           </a>
-          <a href="#" class="social-link">
-            <i class="fab fa-facebook-f"></i>
+          <a href="https://www.tiktok.com/@k16playstation" class="social-link" target="_blank">
+            <i class="fab fa-tiktok"></i>
           </a>
         </div>
       </div>
