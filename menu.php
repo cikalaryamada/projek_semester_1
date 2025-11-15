@@ -95,7 +95,7 @@ $snack = $pdo->query("
         </button>
         <button class="menu-tab" data-category="snack" onclick="switchCategory('snack')">
           <i class="fas fa-cookie"></i>
-          Snack
+          Camilan
         </button>
       </div>
 
