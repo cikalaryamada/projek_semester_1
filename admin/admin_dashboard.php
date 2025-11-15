@@ -1358,51 +1358,67 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
         </div>
       </div>
 
-      <!-- Customers Section -->
-      <div id="customers" class="admin-section">
-        <div class="main-header">
-          <div>
+<!-- Customers Section -->
+<div id="customers" class="admin-section">
+    <div class="main-header">
+        <div>
             <h1 class="page-title">👥 Customers</h1>
-            <p class="page-subtitle">Manage customer information</p>
-          </div>
+            <p class="page-subtitle">Customer information from transactions</p>
         </div>
+    </div>
 
-        <div class="recent-table">
-          <h3><i class="fas fa-users"></i> All Customers</h3>
-          <table>
+    <div class="recent-table">
+        <h3><i class="fas fa-users"></i> Customer Data from Transactions</h3>
+        <table>
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Registration Date</th>
-              </tr>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer Name</th>
+                    <th>Total Transactions</th>
+                    <th>Last Order Date</th>
+                </tr>
             </thead>
             <tbody>
-              <?php if (empty($customers)): ?>
-                <tr>
-                  <td colspan="6" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
-                    <i class="fas fa-users"></i> No customers found
-                  </td>
-                </tr>
-              <?php else: ?>
-                <?php foreach ($customers as $customer): ?>
-                <tr>
-                  <td><strong>#<?php echo $customer['ID_Pelanggan']; ?></strong></td>
-                  <td><?php echo $customer['Nama_Pelanggan']; ?></td>
-                  <td><?php echo $customer['Email_Pelanggan'] ?? '-'; ?></td>
-                  <td><?php echo $customer['No_Telepon_Pelanggan'] ?? '-'; ?></td>
-                  <td><?php echo $customer['Alamat_Pelanggan'] ?? '-'; ?></td>
-                  <td><?php echo date('M d, Y', strtotime($customer['Tanggal_Registrasi'])); ?></td>
-                </tr>
-                <?php endforeach; ?>
-              <?php endif; ?>
+                <?php 
+                // Get unique customers from transactions
+                $customerTransactions = $pdo->query("
+                    SELECT 
+                        p.ID_Pelanggan,
+                        p.Nama_Pelanggan,
+                        COUNT(t.ID_Transaksi_Penjualan) as total_orders,
+                        MAX(t.Tanggal_Transaksi) as last_order
+                    FROM pelanggan p 
+                    LEFT JOIN transaksi_penjualan t ON p.ID_Pelanggan = t.ID_Pelanggan 
+                    GROUP BY p.ID_Pelanggan, p.Nama_Pelanggan
+                    ORDER BY total_orders DESC
+                ")->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (empty($customerTransactions)): ?>
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                            <i class="fas fa-users"></i> No customer data found
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($customerTransactions as $customer): ?>
+                    <tr>
+                        <td><strong>#<?php echo $customer['ID_Pelanggan']; ?></strong></td>
+                        <td><?php echo $customer['Nama_Pelanggan']; ?></td>
+                        <td>
+                            <span class="badge <?php echo $customer['total_orders'] > 0 ? 'success' : 'no-transactions'; ?>">
+                                <?php echo $customer['total_orders']; ?> orders
+                            </span>
+                        </td>
+                        <td>
+                            <?php echo $customer['last_order'] ? date('M d, Y', strtotime($customer['last_order'])) : 'No orders'; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </tbody>
-          </table>
-        </div>
-      </div>
+        </table>
+    </div>
+</div>
 
       <!-- Suppliers Section -->
       <div id="suppliers" class="admin-section">

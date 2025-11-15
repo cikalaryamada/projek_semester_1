@@ -42,19 +42,19 @@ if ($_POST['action'] == 'process_order') {
             throw new Exception('Data tidak lengkap');
         }
         
-        // 1. Cari atau buat pelanggan
+        // 1. Cari atau buat pelanggan (hanya nama)
         $customerId = null;
         $stmt = $pdo->prepare("SELECT ID_Pelanggan FROM pelanggan WHERE Nama_Pelanggan = ? LIMIT 1");
         $stmt->execute([$customerName]);
         $existingCustomer = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($existingCustomer) {
-            $customerId = $existingCustomer['ID_Pelanggan'];
+          $customerId = $existingCustomer['ID_Pelanggan'];
         } else {
-            // Buat pelanggan baru
-            $stmt = $pdo->prepare("INSERT INTO pelanggan (Nama_Pelanggan, No_Telp) VALUES (?, ?)");
-            $stmt->execute([$customerName, '']);
-            $customerId = $pdo->lastInsertId();
+          // Buat pelanggan baru (hanya nama)
+          $stmt = $pdo->prepare("INSERT INTO pelanggan (Nama_Pelanggan) VALUES (?)");
+          $stmt->execute([$customerName]);
+          $customerId = $pdo->lastInsertId();
         }
         
         // 2. Gunakan penjual default (ID 1)
