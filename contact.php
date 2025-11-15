@@ -117,21 +117,21 @@
           <i class="fas fa-question-circle"></i>
           <h3>Tanya Jawab</h3>
           <p>Apakah kamu punya pertanyaan tentang menu, harga, atau fasilitas?</p>
-          <a href="https://wa.me/6282132384305" class="action-btn" target="_blank">Tanya Sekarang</a>
+          <a href="https://wa.me/+6281312146468" class="action-btn" target="_blank">Tanya Sekarang</a>
         </div>
 
         <div class="action-card">
           <i class="fas fa-comments"></i>
           <h3>Live Chat</h3>
           <p>Chat langsung dengan staff kami via WhatsApp untuk bantuan cepat</p>
-          <a href="https://wa.me/6282132384305" class="action-btn" target="_blank">Mulai Chat</a>
+          <a href="https://wa.me/+6281528821611" class="action-btn" target="_blank">Mulai Chat</a>
         </div>
 
         <div class="action-card">
           <i class="fas fa-calendar-check"></i>
           <h3>Reservasi</h3>
           <p>Booking meja untuk acara khusus atau pertemuan bisnis</p>
-          <a href="https://wa.me/6282132384305" class="action-btn" target="_blank">Reservasi Meja</a>
+          <a href="https://wa.me/6282140243675" class="action-btn" target="_blank">Reservasi Meja</a>
         </div>
       </div>
     </div>
