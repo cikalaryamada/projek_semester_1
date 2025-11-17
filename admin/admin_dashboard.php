@@ -39,8 +39,6 @@ if (!$pdo) {
     </div>");
 }
 
-
-
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Add Product
@@ -197,11 +195,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    header('Location: ' . $_SERVER['PHP_SELF']);
+    // Handle Review Actions
+    if (isset($_POST['approve_review'])) {
+        $id_ulasan = $_POST['id_ulasan'];
+        try {
+            $stmt = $pdo->prepare("UPDATE ulasan SET Status = 'approved' WHERE ID_Ulasan = ?");
+            if ($stmt->execute([$id_ulasan])) {
+                $_SESSION['success_message'] = "✅ Ulasan berhasil disetujui!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
+    if (isset($_POST['reject_review'])) {
+        $id_ulasan = $_POST['id_ulasan'];
+        try {
+            $stmt = $pdo->prepare("UPDATE ulasan SET Status = 'rejected' WHERE ID_Ulasan = ?");
+            if ($stmt->execute([$id_ulasan])) {
+                $_SESSION['success_message'] = "✅ Ulasan berhasil ditolak!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
+    if (isset($_POST['delete_review'])) {
+        $id_ulasan = $_POST['id_ulasan'];
+        $foto_ulasan = $_POST['foto_ulasan'] ?? '';
+        
+        try {
+            // Hapus file foto jika ada
+            if ($foto_ulasan && file_exists('assets/images/reviews/' . $foto_ulasan)) {
+                unlink('assets/images/reviews/' . $foto_ulasan);
+            }
+            
+            $stmt = $pdo->prepare("DELETE FROM ulasan WHERE ID_Ulasan = ?");
+            if ($stmt->execute([$id_ulasan])) {
+                $_SESSION['success_message'] = "✅ Ulasan berhasil dihapus!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
+    header('Location: ' . $_SERVER['PHP_SELF'] . (isset($_GET['section']) ? '?section=' . $_GET['section'] : ''));
     exit;
 }
 
-// Ambil data statistik
+// Ambil data statistik dashboard
 $total_products = $pdo->query("SELECT COUNT(*) FROM produk")->fetchColumn();
 $total_customers = $pdo->query("SELECT COUNT(*) FROM pelanggan")->fetchColumn();
 $total_transactions = $pdo->query("SELECT COUNT(*) FROM transaksi_penjualan")->fetchColumn();
@@ -268,6 +310,47 @@ $all_transactions = $pdo->query("
 
 // Ambil semua pelanggan
 $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetchAll(PDO::FETCH_ASSOC);
+
+// ===== REVIEWS MANAGEMENT DATA =====
+// Ambil data statistik ulasan
+$review_stats = $pdo->query("
+    SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN Status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN Status = 'approved' THEN 1 END) as approved,
+        COUNT(CASE WHEN Status = 'rejected' THEN 1 END) as rejected,
+        AVG(Rating) as avg_rating
+    FROM ulasan
+")->fetch(PDO::FETCH_ASSOC);
+
+// Ambil data ulasan berdasarkan filter
+$review_status = $_GET['review_status'] ?? 'all';
+$review_search = $_GET['review_search'] ?? '';
+
+$review_whereConditions = [];
+$review_params = [];
+
+if ($review_status !== 'all') {
+    $review_whereConditions[] = "Status = ?";
+    $review_params[] = $review_status;
+}
+
+if (!empty($review_search)) {
+    $review_whereConditions[] = "(Nama_Pelanggan LIKE ? OR Judul_Ulasan LIKE ? OR Isi_Ulasan LIKE ?)";
+    $review_params[] = "%$review_search%";
+    $review_params[] = "%$review_search%";
+    $review_params[] = "%$review_search%";
+}
+
+$review_whereClause = $review_whereConditions ? "WHERE " . implode(" AND ", $review_whereConditions) : "";
+
+$review_stmt = $pdo->prepare("
+    SELECT * FROM ulasan 
+    $review_whereClause 
+    ORDER BY Tanggal_Ulasan DESC
+");
+$review_stmt->execute($review_params);
+$reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -436,7 +519,7 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
     }
 
@@ -837,6 +920,134 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
     .payment-qris { background: var(--info); color: white; }
     .payment-transfer { background: var(--warning); color: white; }
 
+    /* Review Management Styles */
+    .status-filter-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--cafe-border);
+      background: var(--cafe-bg);
+      color: var(--cafe-text);
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .status-filter-btn.active,
+    .status-filter-btn:hover {
+      background: var(--cafe-main);
+      color: var(--cafe-dark);
+    }
+
+    .review-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .review-modal.show {
+      display: flex;
+    }
+
+    .review-modal-content {
+      background: var(--cafe-card);
+      border-radius: 15px;
+      width: 100%;
+      max-width: 600px;
+      border: 2px solid var(--cafe-main);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .review-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--cafe-border);
+    }
+
+    .review-modal-header h3 {
+      color: var(--cafe-main);
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .review-modal-close {
+      background: none;
+      border: none;
+      color: var(--cafe-text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .review-modal-close:hover {
+      color: var(--cafe-main);
+    }
+
+    .review-modal-body {
+      padding: 1.5rem;
+    }
+
+    .review-detail {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .review-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .reviewer-info h4 {
+      color: var(--cafe-main);
+      margin-bottom: 0.5rem;
+    }
+
+    .review-date {
+      color: var(--cafe-text-light);
+      font-size: 0.9rem;
+    }
+
+    .review-rating {
+      color: var(--cafe-main);
+      font-size: 1.2rem;
+    }
+
+    .review-photo-large {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      border: 2px solid var(--cafe-border);
+      object-fit: cover;
+    }
+
+    .review-text-full {
+      color: var(--cafe-text-light);
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .review-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding: 1.5rem;
+      border-top: 1px solid var(--cafe-border);
+      gap: 1rem;
+    }
+
     /* Mobile Menu Toggle */
     .menu-toggle {
       display: none;
@@ -892,6 +1103,11 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
       
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+      
+      .table-header {
+        flex-direction: column;
+        align-items: flex-start;
       }
     }
 
@@ -968,6 +1184,10 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
       <a href="#" class="menu-item" data-section="categories">
         <i class="fas fa-tags"></i>
         <span class="menu-text">Categories</span>
+      </a>
+      <a href="#" class="menu-item" data-section="reviews">
+        <i class="fas fa-star"></i>
+        <span class="menu-text">Reviews Management</span>
       </a>
       <a href="../menu.php" class="menu-item" target="_blank">
         <i class="fas fa-external-link-alt"></i>
@@ -1358,67 +1578,67 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
         </div>
       </div>
 
-<!-- Customers Section -->
-<div id="customers" class="admin-section">
-    <div class="main-header">
-        <div>
+      <!-- Customers Section -->
+      <div id="customers" class="admin-section">
+        <div class="main-header">
+          <div>
             <h1 class="page-title">👥 Customers</h1>
             <p class="page-subtitle">Customer information from transactions</p>
+          </div>
         </div>
-    </div>
 
-    <div class="recent-table">
-        <h3><i class="fas fa-users"></i> Customer Data from Transactions</h3>
-        <table>
+        <div class="recent-table">
+          <h3><i class="fas fa-users"></i> Customer Data from Transactions</h3>
+          <table>
             <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Customer Name</th>
-                    <th>Total Transactions</th>
-                    <th>Last Order Date</th>
-                </tr>
+              <tr>
+                <th>ID</th>
+                <th>Customer Name</th>
+                <th>Total Transactions</th>
+                <th>Last Order Date</th>
+              </tr>
             </thead>
             <tbody>
-                <?php 
-                // Get unique customers from transactions
-                $customerTransactions = $pdo->query("
-                    SELECT 
-                        p.ID_Pelanggan,
-                        p.Nama_Pelanggan,
-                        COUNT(t.ID_Transaksi_Penjualan) as total_orders,
-                        MAX(t.Tanggal_Transaksi) as last_order
-                    FROM pelanggan p 
-                    LEFT JOIN transaksi_penjualan t ON p.ID_Pelanggan = t.ID_Pelanggan 
-                    GROUP BY p.ID_Pelanggan, p.Nama_Pelanggan
-                    ORDER BY total_orders DESC
-                ")->fetchAll(PDO::FETCH_ASSOC);
-                
-                if (empty($customerTransactions)): ?>
-                    <tr>
-                        <td colspan="4" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
-                            <i class="fas fa-users"></i> No customer data found
-                        </td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($customerTransactions as $customer): ?>
-                    <tr>
-                        <td><strong>#<?php echo $customer['ID_Pelanggan']; ?></strong></td>
-                        <td><?php echo $customer['Nama_Pelanggan']; ?></td>
-                        <td>
-                            <span class="badge <?php echo $customer['total_orders'] > 0 ? 'success' : 'no-transactions'; ?>">
-                                <?php echo $customer['total_orders']; ?> orders
-                            </span>
-                        </td>
-                        <td>
-                            <?php echo $customer['last_order'] ? date('M d, Y', strtotime($customer['last_order'])) : 'No orders'; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+              <?php 
+              // Get unique customers from transactions
+              $customerTransactions = $pdo->query("
+                  SELECT 
+                      p.ID_Pelanggan,
+                      p.Nama_Pelanggan,
+                      COUNT(t.ID_Transaksi_Penjualan) as total_orders,
+                      MAX(t.Tanggal_Transaksi) as last_order
+                  FROM pelanggan p 
+                  LEFT JOIN transaksi_penjualan t ON p.ID_Pelanggan = t.ID_Pelanggan 
+                  GROUP BY p.ID_Pelanggan, p.Nama_Pelanggan
+                  ORDER BY total_orders DESC
+              ")->fetchAll(PDO::FETCH_ASSOC);
+              
+              if (empty($customerTransactions)): ?>
+                  <tr>
+                      <td colspan="4" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                          <i class="fas fa-users"></i> No customer data found
+                      </td>
+                  </tr>
+              <?php else: ?>
+                  <?php foreach ($customerTransactions as $customer): ?>
+                  <tr>
+                      <td><strong>#<?php echo $customer['ID_Pelanggan']; ?></strong></td>
+                      <td><?php echo $customer['Nama_Pelanggan']; ?></td>
+                      <td>
+                          <span class="badge <?php echo $customer['total_orders'] > 0 ? 'success' : 'no-transactions'; ?>">
+                              <?php echo $customer['total_orders']; ?> orders
+                          </span>
+                      </td>
+                      <td>
+                          <?php echo $customer['last_order'] ? date('M d, Y', strtotime($customer['last_order'])) : 'No orders'; ?>
+                      </td>
+                  </tr>
+                  <?php endforeach; ?>
+              <?php endif; ?>
             </tbody>
-        </table>
-    </div>
-</div>
+          </table>
+        </div>
+      </div>
 
       <!-- Suppliers Section -->
       <div id="suppliers" class="admin-section">
@@ -1565,11 +1785,232 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
           </table>
         </div>
       </div>
+
+      <!-- Reviews Section -->
+      <div id="reviews" class="admin-section">
+        <div class="main-header">
+          <div>
+            <h1 class="page-title">⭐ Reviews Management</h1>
+            <p class="page-subtitle">Kelola ulasan dan testimoni pelanggan</p>
+          </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-comments"></i>
+            </div>
+            <div class="stat-number"><?php echo $review_stats['total']; ?></div>
+            <div class="stat-label">Total Reviews</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-number"><?php echo $review_stats['pending']; ?></div>
+            <div class="stat-label">Pending Review</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-number"><?php echo $review_stats['approved']; ?></div>
+            <div class="stat-label">Approved</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-number"><?php echo $review_stats['rejected']; ?></div>
+            <div class="stat-label">Rejected</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-number"><?php echo round($review_stats['avg_rating'], 1); ?></div>
+            <div class="stat-label">Average Rating</div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="form-container">
+          <form method="GET" id="reviewFilterForm">
+            <input type="hidden" name="section" value="reviews">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Status Filter</label>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                  <button type="button" class="status-filter-btn <?php echo $review_status === 'all' ? 'active' : ''; ?>" data-status="all">All</button>
+                  <button type="button" class="status-filter-btn <?php echo $review_status === 'pending' ? 'active' : ''; ?>" data-status="pending">Pending</button>
+                  <button type="button" class="status-filter-btn <?php echo $review_status === 'approved' ? 'active' : ''; ?>" data-status="approved">Approved</button>
+                  <button type="button" class="status-filter-btn <?php echo $review_status === 'rejected' ? 'active' : ''; ?>" data-status="rejected">Rejected</button>
+                </div>
+                <input type="hidden" name="review_status" id="reviewStatus" value="<?php echo $review_status; ?>">
+              </div>
+              
+              <div class="form-group">
+                <label for="review_search">Search Reviews</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="review_search" name="review_search" class="form-control" placeholder="Cari nama, judul, atau isi ulasan..." value="<?php echo htmlspecialchars($review_search); ?>" style="flex: 1;">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                  <?php if (!empty($review_search)): ?>
+                    <a href="?section=reviews&review_status=<?php echo $review_status; ?>" class="btn btn-secondary">
+                      <i class="fas fa-times"></i> Clear
+                    </a>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Reviews Table -->
+        <div class="recent-table">
+          <h3><i class="fas fa-list"></i> Customer Reviews</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Rating</th>
+                <th>Title</th>
+                <th>Review Preview</th>
+                <th>Photo</th>
+                <th>Recommend</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($reviews)): ?>
+                <tr>
+                  <td colspan="10" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                    <i class="fas fa-comment-slash"></i> No reviews found
+                  </td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($reviews as $review): ?>
+                <tr>
+                  <td><strong>#<?php echo $review['ID_Ulasan']; ?></strong></td>
+                  <td><?php echo htmlspecialchars($review['Nama_Pelanggan']); ?></td>
+                  <td>
+                    <div style="color: var(--cafe-main);">
+                      <?php
+                      for ($i = 1; $i <= 5; $i++) {
+                          echo $i <= $review['Rating'] ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+                      }
+                      ?>
+                      <br>
+                      <small>(<?php echo $review['Rating']; ?>/5)</small>
+                    </div>
+                  </td>
+                  <td><?php echo htmlspecialchars($review['Judul_Ulasan']); ?></td>
+                  <td title="<?php echo htmlspecialchars($review['Isi_Ulasan']); ?>">
+                    <?php echo htmlspecialchars(substr($review['Isi_Ulasan'], 0, 50)); ?>...
+                  </td>
+                  <td>
+                    <?php if (!empty($review['Foto_Ulasan'])): ?>
+                      <img src="assets/images/reviews/<?php echo $review['Foto_Ulasan']; ?>" 
+                           alt="Review Photo" 
+                           class="product-image"
+                           onclick="showReviewDetail(<?php echo $review['ID_Ulasan']; ?>)"
+                           style="cursor: pointer;">
+                    <?php else: ?>
+                      <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--cafe-bg); display: flex; align-items: center; justify-content: center; color: var(--cafe-text-light); border: 2px dashed var(--cafe-border);">
+                        <i class="fas fa-camera"></i>
+                      </div>
+                    <?php endif; ?>
+                  </td>
+                  <td>
+                    <?php if ($review['Rekomendasi'] === 'yes'): ?>
+                      <span class="badge success"><i class="fas fa-thumbs-up"></i> Yes</span>
+                    <?php else: ?>
+                      <span class="badge danger"><i class="fas fa-thumbs-down"></i> No</span>
+                    <?php endif; ?>
+                  </td>
+                  <td><?php echo date('M d, Y H:i', strtotime($review['Tanggal_Ulasan'])); ?></td>
+                  <td>
+                    <span class="badge <?php 
+                      echo $review['Status'] === 'pending' ? 'warning' : 
+                           ($review['Status'] === 'approved' ? 'success' : 'danger'); 
+                    ?>">
+                      <?php echo ucfirst($review['Status']); ?>
+                    </span>
+                  </td>
+                  <td>
+                    <div class="action-buttons">
+                      <button class="action-btn edit" onclick="showReviewDetail(<?php echo $review['ID_Ulasan']; ?>)" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      
+                      <?php if ($review['Status'] !== 'approved'): ?>
+                      <form method="POST" style="display: inline;">
+                        <input type="hidden" name="id_ulasan" value="<?php echo $review['ID_Ulasan']; ?>">
+                        <button type="submit" name="approve_review" class="action-btn edit" title="Approve Review" style="background: var(--success);">
+                          <i class="fas fa-check"></i>
+                        </button>
+                      </form>
+                      <?php endif; ?>
+                      
+                      <?php if ($review['Status'] !== 'rejected'): ?>
+                      <form method="POST" style="display: inline;">
+                        <input type="hidden" name="id_ulasan" value="<?php echo $review['ID_Ulasan']; ?>">
+                        <button type="submit" name="reject_review" class="action-btn delete" title="Reject Review">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </form>
+                      <?php endif; ?>
+                      
+                      <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this review?');">
+                        <input type="hidden" name="id_ulasan" value="<?php echo $review['ID_Ulasan']; ?>">
+                        <input type="hidden" name="foto_ulasan" value="<?php echo $review['Foto_Ulasan']; ?>">
+                        <button type="submit" name="delete_review" class="action-btn delete" title="Delete Review">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
-<script>
-    // Navigation between sections - FIXED VERSION
+  <!-- Review Detail Modal -->
+  <div class="review-modal" id="reviewModal">
+    <div class="review-modal-content">
+      <div class="review-modal-header">
+        <h3><i class="fas fa-star"></i> Review Details</h3>
+        <button class="review-modal-close" onclick="closeReviewModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="review-modal-body">
+        <div id="reviewModalBody">
+          <!-- Content will be loaded by JavaScript -->
+        </div>
+      </div>
+      <div class="review-modal-footer">
+        <button class="btn btn-secondary" onclick="closeReviewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Navigation between sections
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize first section
         showSection('dashboard');
@@ -1587,10 +2028,33 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
                 }
             });
         });
+
+        // Review filter functionality
+        const statusFilterBtns = document.querySelectorAll('.status-filter-btn');
+        const reviewStatusInput = document.getElementById('reviewStatus');
+        const reviewFilterForm = document.getElementById('reviewFilterForm');
+        
+        if (statusFilterBtns && reviewStatusInput && reviewFilterForm) {
+            statusFilterBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const status = this.getAttribute('data-status');
+                    
+                    // Update active button
+                    statusFilterBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update hidden input
+                    reviewStatusInput.value = status;
+                    
+                    // Submit form
+                    reviewFilterForm.submit();
+                });
+            });
+        }
     });
 
     function showSection(sectionId) {
-        console.log('Showing section:', sectionId); // Debug log
+        console.log('Showing section:', sectionId);
         
         // Remove active class from all links and sections
         document.querySelectorAll('.menu-item').forEach(l => l.classList.remove('active'));
@@ -1607,7 +2071,6 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
         updatePageTitle(sectionId);
     }
 
-    // Update page title based on active section
     function updatePageTitle(section) {
         const titles = {
             'dashboard': '📊 Dashboard Overview',
@@ -1615,7 +2078,8 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
             'transactions': '💰 Transactions',
             'customers': '👥 Customers',
             'suppliers': '🚚 Suppliers',
-            'categories': '🏷️ Categories'
+            'categories': '🏷️ Categories',
+            'reviews': '⭐ Reviews Management'
         };
         
         const pageTitle = document.querySelector('.page-title');
@@ -1722,6 +2186,107 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
         document.getElementById('addCategoryForm').style.display = 'none';
     }
 
+    // Review Management Functions
+    function showReviewDetail(reviewId) {
+        // Find the review in the table and display its details
+        const reviewRows = document.querySelectorAll('tbody tr');
+        let reviewRow = null;
+        
+        for (let row of reviewRows) {
+            const firstCell = row.querySelector('td:first-child strong');
+            if (firstCell && firstCell.textContent.includes('#' + reviewId)) {
+                reviewRow = row;
+                break;
+            }
+        }
+        
+        if (reviewRow) {
+            const cells = reviewRow.querySelectorAll('td');
+            const photoSrc = cells[5].querySelector('img')?.src || '';
+            const hasPhoto = cells[5].querySelector('img');
+            
+            const modalContent = `
+                <div class="review-detail">
+                    <div class="review-detail-header">
+                        <div class="reviewer-info">
+                            <h4>${cells[1].textContent}</h4>
+                            <div class="review-date">${cells[7].textContent}</div>
+                        </div>
+                        <div class="review-rating">
+                            ${cells[2].innerHTML}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <strong>Title:</strong>
+                        <p style="color: var(--cafe-text); font-weight: 600;">${cells[3].textContent}</p>
+                    </div>
+                    
+                    <div>
+                        <strong>Review:</strong>
+                        <p class="review-text-full">${cells[4].getAttribute('title')}</p>
+                    </div>
+                    
+                    <div>
+                        <strong>Recommendation:</strong>
+                        <p>${cells[6].textContent.includes('Yes') ? '✅ Recommends this place' : '❌ Does not recommend'}</p>
+                    </div>
+                    
+                    <div>
+                        <strong>Status:</strong>
+                        <span class="badge ${cells[8].querySelector('.badge').className.split(' ')[1]}">
+                            ${cells[8].querySelector('.badge').textContent}
+                        </span>
+                    </div>
+                    
+                    ${hasPhoto ? `
+                    <div>
+                        <strong>Photo:</strong>
+                        <div style="text-align: center; margin-top: 1rem;">
+                            <img src="${photoSrc}" alt="Review Photo" class="review-photo-large">
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('reviewModalBody').innerHTML = modalContent;
+            document.getElementById('reviewModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeReviewModal() {
+        document.getElementById('reviewModal').classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('reviewModal');
+        if (e.target === modal) {
+            closeReviewModal();
+        }
+    });
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.menu-toggle');
+            if (!sidebar.contains(e.target) && !toggle.contains(e.target) && sidebar.classList.contains('active')) {
+                toggleSidebar();
+            }
+        }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) {
+            document.getElementById('sidebar').classList.remove('active');
+        }
+    });
+
     // Auto-hide messages after 5 seconds
     setTimeout(() => {
         const alerts = document.querySelectorAll('.alert');
@@ -1754,24 +2319,6 @@ $customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetch
             });
         });
     });
-
-    // Close sidebar when clicking outside on mobile
-    document.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.querySelector('.menu-toggle');
-            if (!sidebar.contains(e.target) && !toggle.contains(e.target) && sidebar.classList.contains('active')) {
-                toggleSidebar();
-            }
-        }
-    });
-
-    // Handle window resize
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
-    });
-</script>
+  </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <?php
-// Ulasan.php - VERSI LENGKAP SIAP PAKAI
+// Ulasan.php - VERSI LENGKAP DENGAN UPLOAD FOTO
 session_start();
 
 // Koneksi database
@@ -34,19 +34,20 @@ foreach ($configs as $config) {
 // Jika koneksi berhasil, ambil data dari database
 if ($pdo) {
     try {
-        // Cek apakah tabel ulasan exists, jika tidak buat
+        // Cek apakah tabel ulasan exists, jika tidak buat dengan struktur baru
         $tableExists = $pdo->query("SHOW TABLES LIKE 'ulasan'")->rowCount() > 0;
         
         if (!$tableExists) {
-            // Buat tabel ulasan jika belum ada
+            // Buat tabel ulasan jika belum ada dengan struktur baru
             $pdo->exec("
                 CREATE TABLE ulasan (
                     ID_Ulasan INT AUTO_INCREMENT PRIMARY KEY,
-                    Nama_Pelanggan VARCHAR(100) NOT NULL,
+                    Nama_Pelanggan VARCHAR(100) NOT NULL DEFAULT 'Pelanggan',
                     Rating INT NOT NULL,
                     Judul_Ulasan VARCHAR(200) NOT NULL,
                     Isi_Ulasan TEXT NOT NULL,
                     Rekomendasi ENUM('yes', 'no') NOT NULL DEFAULT 'yes',
+                    Foto_Ulasan VARCHAR(255) NULL,
                     Tanggal_Ulasan DATETIME DEFAULT CURRENT_TIMESTAMP,
                     Status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved'
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -54,15 +55,21 @@ if ($pdo) {
             
             // Insert sample data
             $sampleReviews = [
-                [5, 'Budi Santoso', 'Tempat nongkrong favorit!', 'K SIXTEEN CAFE benar-benar menjadi tempat favorit saya untuk nongkrong. Kopinya enak, makanannya lezat, dan suasana nyaman. Staffnya juga ramah-ramah. Sangat recommended!', 'yes'],
-                [5, 'Sari Dewi', 'Pelayanan luar biasa', 'Saya sering datang ke sini untuk meeting atau sekedar mengerjakan tugas. WiFi-nya cepat, tempatnya nyaman, dan yang paling penting kopinya selalu konsisten enaknya.', 'yes'],
-                [4, 'Ahmad Rizki', 'Kopi dan makanan enak', 'Kopi susu di sini memang juara. Rasa kopinya kuat tapi tidak pahit. Makanannya juga enak, terutama ayam penyetnya.', 'yes'],
-                [5, 'Diana Putri', 'Buka 24 jam, sangat membantu', 'Sebagai mahasiswa yang sering begadang, keberadaan K SIXTEEN yang buka 24 jam sangat membantu. Bisa nugas sampai pagi dengan ditemani kopi dan snack yang enak.', 'yes']
+                [5, 'Budi Santoso', 'Tempat nongkrong favorit!', 'K SIXTEEN CAFE benar-benar menjadi tempat favorit saya untuk nongkrong. Kopinya enak, makanannya lezat, dan suasana nyaman. Staffnya juga ramah-ramah. Sangat recommended!', 'yes', NULL],
+                [5, 'Sari Dewi', 'Pelayanan luar biasa', 'Saya sering datang ke sini untuk meeting atau sekedar mengerjakan tugas. WiFi-nya cepat, tempatnya nyaman, dan yang paling penting kopinya selalu konsisten enaknya.', 'yes', NULL],
+                [4, 'Ahmad Rizki', 'Kopi dan makanan enak', 'Kopi susu di sini memang juara. Rasa kopinya kuat tapi tidak pahit. Makanannya juga enak, terutama ayam penyetnya.', 'yes', NULL],
+                [5, 'Diana Putri', 'Buka 24 jam, sangat membantu', 'Sebagai mahasiswa yang sering begadang, keberadaan K SIXTEEN yang buka 24 jam sangat membantu. Bisa nugas sampai pagi dengan ditemani kopi dan snack yang enak.', 'yes', NULL]
             ];
             
-            $stmt = $pdo->prepare("INSERT INTO ulasan (Rating, Nama_Pelanggan, Judul_Ulasan, Isi_Ulasan, Rekomendasi) VALUES (?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO ulasan (Rating, Nama_Pelanggan, Judul_Ulasan, Isi_Ulasan, Rekomendasi, Foto_Ulasan) VALUES (?, ?, ?, ?, ?, ?)");
             foreach ($sampleReviews as $review) {
                 $stmt->execute($review);
+            }
+        } else {
+            // Cek jika kolom Foto_Ulasan belum ada
+            $columnCheck = $pdo->query("SHOW COLUMNS FROM ulasan LIKE 'Foto_Ulasan'")->fetch();
+            if (!$columnCheck) {
+                $pdo->exec("ALTER TABLE ulasan ADD COLUMN Foto_Ulasan VARCHAR(255) NULL AFTER Rekomendasi");
             }
         }
         
@@ -156,6 +163,7 @@ function time_elapsed_string($datetime, $full = false) {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -524,6 +532,69 @@ function time_elapsed_string($datetime, $full = false) {
     .submit-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 5px 15px rgba(255, 214, 0, 0.4);
+    }
+
+    /* File Upload Styles */
+    .file-upload-area {
+      border: 2px dashed var(--cafe-border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .file-upload-area:hover {
+      border-color: var(--cafe-main);
+      background: rgba(255, 214, 0, 0.05);
+    }
+
+    .file-upload-area i {
+      font-size: 2rem;
+      color: var(--cafe-main);
+      margin-bottom: 1rem;
+    }
+
+    .file-upload-area p {
+      color: var(--cafe-text);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .file-upload-area span {
+      color: var(--cafe-text-light);
+      font-size: 0.9rem;
+    }
+
+    .file-upload-area input {
+      display: none;
+    }
+
+    .photo-preview {
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .photo-preview img {
+      max-width: 200px;
+      max-height: 150px;
+      border-radius: 8px;
+      border: 2px solid var(--cafe-border);
+    }
+
+    .review-photo {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      margin: 1rem 0;
+      border: 2px solid var(--cafe-border);
+      object-fit: cover;
+    }
+
+    .review-photo-container {
+      text-align: center;
+      margin: 1rem 0;
     }
 
     .reviews-filter {
@@ -1048,7 +1119,7 @@ function time_elapsed_string($datetime, $full = false) {
           ?>
         <?php endif; ?>
         
-        <form class="review-form" action="process_ulasan.php" method="POST">
+        <form class="review-form" action="process_ulasan.php" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label for="reviewer-name">Nama Anda *</label>
             <input type="text" id="reviewer-name" name="reviewer_name" required placeholder="Masukkan nama Anda" value="<?php echo $_POST['reviewer_name'] ?? ''; ?>">
@@ -1078,6 +1149,17 @@ function time_elapsed_string($datetime, $full = false) {
           <div class="form-group">
             <label for="review-text">Ulasan Anda *</label>
             <textarea id="review-text" name="review_text" rows="5" required placeholder="Ceritakan pengalaman Anda di K SIXTEEN CAFE..."><?php echo $_POST['review_text'] ?? ''; ?></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="review-photo">Foto Ulasan (Opsional)</label>
+            <div class="file-upload-area" id="photo-upload-area" onclick="document.getElementById('review-photo').click()">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <p>Klik untuk upload foto</p>
+              <span>Format: JPG, PNG, GIF (Maks. 5MB)</span>
+              <input type="file" id="review-photo" name="review_photo" accept="image/*" onchange="previewPhoto(this)">
+            </div>
+            <div id="photo-preview" class="photo-preview"></div>
           </div>
           
           <div class="form-group">
@@ -1139,6 +1221,15 @@ function time_elapsed_string($datetime, $full = false) {
                   ?>
                 </div>
               </div>
+              
+              <?php if (!empty($review['Foto_Ulasan'])): ?>
+              <div class="review-photo-container">
+                <img src="assets/images/reviews/<?php echo $review['Foto_Ulasan']; ?>" 
+                     alt="Foto Ulasan" 
+                     class="review-photo"
+                     onerror="this.style.display='none'">
+              </div>
+              <?php endif; ?>
               
               <div class="review-content">
                 <h3 class="review-title"><?php echo htmlspecialchars($review['Judul_Ulasan']); ?></h3>
@@ -1275,6 +1366,62 @@ function time_elapsed_string($datetime, $full = false) {
           });
         });
       });
+    });
+
+    // Photo preview functionality
+    function previewPhoto(input) {
+      const preview = document.getElementById('photo-preview');
+      const uploadArea = document.getElementById('photo-upload-area');
+      
+      preview.innerHTML = '';
+      
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // Check file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('Ukuran file terlalu besar. Maksimal 5MB.');
+          input.value = '';
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.innerHTML = `<img src="${e.target.result}" alt="Preview Foto">`;
+          uploadArea.style.borderColor = 'var(--cafe-main)';
+          uploadArea.innerHTML = `
+            <i class="fas fa-check-circle" style="color: var(--cafe-main);"></i>
+            <p>Foto berhasil dipilih</p>
+            <span>${file.name}</span>
+            <input type="file" id="review-photo" name="review_photo" accept="image/*" onchange="previewPhoto(this)" style="display: none;">
+          `;
+          
+          // Re-attach click event
+          uploadArea.onclick = function() {
+            document.getElementById('review-photo').click();
+          };
+        }
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Reset upload area when form is submitted
+    document.querySelector('.review-form').addEventListener('submit', function() {
+      const uploadArea = document.getElementById('photo-upload-area');
+      setTimeout(() => {
+        uploadArea.innerHTML = `
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>Klik untuk upload foto</p>
+          <span>Format: JPG, PNG, GIF (Maks. 5MB)</span>
+          <input type="file" id="review-photo" name="review_photo" accept="image/*" onchange="previewPhoto(this)" style="display: none;">
+        `;
+        uploadArea.style.borderColor = 'var(--cafe-border)';
+        
+        // Re-attach click event
+        uploadArea.onclick = function() {
+          document.getElementById('review-photo').click();
+        };
+      }, 1000);
     });
   </script>
 </body>
