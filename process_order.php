@@ -78,11 +78,11 @@ if ($_POST['action'] == 'process_order') {
             $totalAmount += $itemTotal;
             
             // Insert ke transaksi_penjualan
-            $stmt = $pdo->prepare("
-                INSERT INTO transaksi_penjualan 
-                (ID_Penjual, ID_Pelanggan, ID_Produk, Tanggal_Transaksi, Metode_Pembayaran, Jumlah_Barang, Total_Harga, Nomor_Meja) 
-                VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)
-            ");
+$stmt = $pdo->prepare("
+    INSERT INTO transaksi_penjualan 
+    (ID_Penjual, ID_Pelanggan, ID_Produk, Tanggal_Transaksi, Metode_Pembayaran, Jumlah_Barang, Total_Harga, Nomor_Meja, order_status) 
+    VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, 'pending')
+");
             $stmt->execute([
                 $penjualId,
                 $customerId,
