@@ -29,6 +29,7 @@ $makanan = $pdo->query("
     ORDER BY p.Nama_Produk
 ")->fetchAll(PDO::FETCH_ASSOC);
 
+// Ambil data minuman dari database
 $minuman = $pdo->query("
     SELECT p.*, k.Nama_Kategori 
     FROM produk p 
@@ -37,7 +38,7 @@ $minuman = $pdo->query("
     ORDER BY p.Nama_Produk
 ")->fetchAll(PDO::FETCH_ASSOC);
 
-// Untuk snack, kita asumsikan menggunakan kategori lain atau bisa disesuaikan
+// Ambil data snack dari database
 $snack = $pdo->query("
     SELECT p.*, k.Nama_Kategori 
     FROM produk p 
@@ -179,7 +180,7 @@ $snack = $pdo->query("
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeCheckoutModal()">Batal</button>
         <button class="btn-primary" onclick="processOrder()">
-          <i class="fas fa-paper-plane"></i> Lanjutkan Pembayaran
+          <i class="fas fa-check-circle"></i> Konfirmasi Pesanan
         </button>
       </div>
     </div>
@@ -257,7 +258,7 @@ $snack = $pdo->query("
           <div class="payment-success">
             <i class="fas fa-check-circle"></i>
             <h4>Pembayaran Berhasil!</h4>
-            <p>Pesanan Anda sedang diproses dan akan dikirim via WhatsApp</p>
+            <p>Pesanan Anda sedang diproses</p>
           </div>
         </div>
       </div>
@@ -605,10 +606,9 @@ $snack = $pdo->query("
         
         if (response.success) {
           if (paymentMethod === 'cash') {
-            sendWhatsAppOrder(orderId, customerName, tableNumber, paymentMethod, response.total_amount);
             closeCheckoutModal();
+            alert('✅ Order berhasil! Pesanan Anda sedang diproses.');
             clearCart();
-            alert('✅ Order berhasil! Stok telah diperbarui. Silakan lanjutkan konfirmasi via WhatsApp.');
           } else if (paymentMethod === 'transfer') {
             const totalAmount = response.total_amount || cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
             const uniqueCode = Math.floor(Math.random() * 900) + 100;
@@ -622,7 +622,7 @@ $snack = $pdo->query("
       } catch (error) {
         alert('❌ Terjadi kesalahan: ' + error.message);
         const checkoutBtn = document.querySelector('.btn-primary');
-        checkoutBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Lanjutkan Pembayaran';
+        checkoutBtn.innerHTML = '<i class="fas fa-check-circle"></i> Konfirmasi Pesanan';
         checkoutBtn.disabled = false;
       }
     }
@@ -652,27 +652,6 @@ $snack = $pdo->query("
     // Generate random order ID
     function generateOrderId() {
       return 'ORD' + Date.now().toString().slice(-6);
-    }
-
-    // Function untuk kirim pesan WhatsApp
-    function sendWhatsAppOrder(orderId, customerName, tableNumber, paymentMethod, totalAmount) {
-      let message = `Halo K SIXTEEN CAFE! Saya ingin memesan:\n\n`;
-      
-      cart.forEach(item => {
-        message += `• ${item.nama} x${item.quantity} = Rp ${(item.harga * item.quantity).toLocaleString('id-ID')}\n`;
-      });
-      
-      const total = totalAmount || cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-      message += `\nTotal: Rp ${total.toLocaleString('id-ID')}`;
-      message += `\n\nNama: ${customerName}`;
-      message += `\nMeja: ${tableNumber}`;
-      message += `\nMetode Bayar: ${getPaymentMethodName(paymentMethod)}`;
-      message += `\nOrder ID: #${orderId}`;
-      message += `\nStatus: Sudah diproses di sistem - Stok otomatis terupdate`;
-      message += `\n\nTerima kasih!`;
-      
-      const whatsappUrl = `https://wa.me/6282132384305?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
     }
 
     // Function untuk buka modal pembayaran transfer
@@ -731,13 +710,10 @@ $snack = $pdo->query("
       
       // Simulasi proses verifikasi pembayaran
       setTimeout(() => {
-        // Untuk demo, selalu berhasil
         showPaymentSuccess();
         
-        // Setelah berhasil, kirim pesan WhatsApp dan clear cart
+        // Setelah berhasil, clear cart
         setTimeout(() => {
-          const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-          sendWhatsAppOrder(currentOrderId, currentCustomerName, currentTableNumber, currentPaymentMethod, totalAmount);
           closePaymentModal();
           clearCart();
         }, 2000);

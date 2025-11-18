@@ -296,7 +296,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <div class="login-container">
       <div class="login-logo">
         <div class="login-logo-image">
-          <img src="assets/images/logo.jpg" alt="K SIXTEEN CAFE">
+          <img src="../assets/images/logo.jpg" alt="K SIXTEEN CAFE">
         </div>
         <div class="login-logo-text">K SIXTEEN CAFE</div>
       </div>
