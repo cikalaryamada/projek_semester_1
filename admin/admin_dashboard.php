@@ -1334,15 +1334,20 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
     background-color: rgba(0, 0, 0, 0.7);
 }
 
+/* === FIX: Modal tidak transparan === */
 .modal-content {
-    background: var(--cafe-secondary);
+    background: #000 !important;     /* HITAM SOLID */
     margin: 100px auto;
     padding: 20px;
     width: 50%;
     border-radius: 12px;
     color: white;
+
+    opacity: 1 !important;           /* Pastikan tidak tembus */
+    backdrop-filter: none !important;
 }
 
+/* Tombol close */
 .close-modal {
     float: right;
     font-size: 24px;
@@ -1355,13 +1360,19 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
     color: var(--cafe-text);
 }
 
+/* Dropdown biar tidak transparan */
 .form-group select {
     width: 100%;
     padding: 10px;
     border-radius: 8px;
     border: 1px solid var(--cafe-accent);
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--cafe-text);
+    background: #fff !important;     /* FIX */
+    color: #000 !important;
+}
+
+.form-group select option {
+    background: #fff !important;     /* FIX */
+    color: #000 !important;
 }
 
 .save-btn {
@@ -1376,24 +1387,6 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
 .save-btn:hover {
     background: #b38600;
 }
-
-/* ========================================================= */
-/* === FIX: Dropdown Assign Seller biar tulisan tidak putih === */
-/* ========================================================= */
-
-.form-group select,
-.form-group select option {
-    background: #fff !important;
-    color: #000 !important;
-}
-
-/* Jika select punya ID seperti seller_id, aktifkan ini:
-#seller_id,
-#seller_id option {
-    background: #fff !important;
-    color: #000 !important;
-}
-*/
 
     /* Mobile Menu Toggle */
     .menu-toggle {

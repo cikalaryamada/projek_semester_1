@@ -309,6 +309,18 @@ $snack = $pdo->query("
     .receipt-modal .modal-content {
       max-width: 500px;
     }
+    /* Ubah background dropdown pilih nomor meja */
+#table-number {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+#table-number option,
+#table-number optgroup {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
   </style>
 </head>
 <body>
@@ -421,7 +433,34 @@ $snack = $pdo->query("
         
         <div class="form-group">
           <label for="table-number">Nomor Meja:</label>
-          <input type="text" id="table-number" placeholder="Contoh: A1, B5, dll" required>
+          <select id="table-number" required>
+            <option value="">Pilih Nomor Meja</option>
+            <optgroup label="Regular">
+              <option value="Regular 1">Regular 1</option>
+              <option value="Regular 2">Regular 2</option>
+              <option value="Regular 3">Regular 3</option>
+              <option value="Regular 4">Regular 4</option>
+              <option value="Regular 5">Regular 5</option>
+              <option value="Regular 6">Regular 6</option>
+              <option value="Regular 7">Regular 7</option>
+              <option value="Regular 8">Regular 8</option>
+              <option value="Regular 9">Regular 9</option>
+            </optgroup>
+            <optgroup label="VIP">
+              <option value="VIP 1">VIP 1</option>
+              <option value="VIP 2">VIP 2</option>
+              <option value="VIP 3">VIP 3</option>
+              <option value="VIP 4">VIP 4</option>
+              <option value="VIP 5">VIP 5</option>
+            </optgroup>
+            <optgroup label="Luxury">
+              <option value="Luxury 1">Luxury 1</option>
+              <option value="Luxury 2">Luxury 2</option>
+            </optgroup>
+            <optgroup label="Premier">
+              <option value="Premier 1">Premier 1</option>
+            </optgroup>
+          </select>
         </div>
         
         <div class="payment-methods">
