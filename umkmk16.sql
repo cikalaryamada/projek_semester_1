@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 17, 2025 at 07:07 AM
+-- Generation Time: Nov 18, 2025 at 07:20 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -81,7 +81,11 @@ INSERT INTO `log_pelanggan` (`id_log`, `id_pelanggan`, `nama_pelanggan`, `alamat
 (4, 4, 'Dimas', 'Nganjuk', '', '085733629903', '', 'UPDATE', '2025-11-14 15:32:50'),
 (5, 5, 'Novia', 'Nganjuk', '', '082140243675', '', 'UPDATE', '2025-11-14 15:32:50'),
 (6, 6, 'Arif cihuy', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-15 16:36:52'),
-(7, 7, 'Novia Kalcer', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-17 08:12:18');
+(7, 7, 'Novia Kalcer', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-17 08:12:18'),
+(8, 8, 'Novia Kalcer ui', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-18 10:12:39'),
+(9, 9, 'Dimas dimsum for lifeeee', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-18 10:26:22'),
+(10, 10, 'Alan walker', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-18 12:58:27'),
+(11, 11, 'aalan lomt', NULL, NULL, NULL, NULL, 'INSERT', '2025-11-18 13:00:39');
 
 -- --------------------------------------------------------
 
@@ -147,7 +151,28 @@ INSERT INTO `log_transaksi` (`id_log`, `id_transaksi`, `id_produk`, `stok_sebelu
 (41, 46, 3, 94, 92, 'PENJUALAN', '2025-11-16 21:04:36'),
 (42, 47, 3, 90, 88, 'PENJUALAN', '2025-11-17 08:12:18'),
 (43, 48, 3, 86, 84, 'PENJUALAN', '2025-11-17 09:23:53'),
-(44, 49, 5, 98, 97, 'PENJUALAN', '2025-11-17 09:23:53');
+(44, 49, 5, 98, 97, 'PENJUALAN', '2025-11-17 09:23:53'),
+(45, 6, 3, 82, 83, 'HAPUS_TRANSAKSI', '2025-11-17 18:52:02'),
+(46, 10, 6, 98, 99, 'HAPUS_TRANSAKSI', '2025-11-17 18:58:51'),
+(47, 41, 38, 98, 99, 'HAPUS_TRANSAKSI', '2025-11-17 21:38:36'),
+(48, 50, 37, 98, 97, 'PENJUALAN', '2025-11-18 07:57:57'),
+(49, 51, 37, 96, 95, 'PENJUALAN', '2025-11-18 08:02:58'),
+(50, 52, 2, 98, 97, 'PENJUALAN', '2025-11-18 08:02:58'),
+(51, 53, 2, 96, 95, 'PENJUALAN', '2025-11-18 08:03:33'),
+(52, 54, 34, 98, 97, 'PENJUALAN', '2025-11-18 08:30:09'),
+(53, 55, 15, 98, 0, 'PENJUALAN', '2025-11-18 08:30:09'),
+(54, 56, 8, 98, 97, 'PENJUALAN', '2025-11-18 08:30:34'),
+(55, 57, 1, 98, 97, 'PENJUALAN', '2025-11-18 10:10:58'),
+(56, 58, 1, 96, 95, 'PENJUALAN', '2025-11-18 10:12:05'),
+(57, 59, 4, 98, 97, 'PENJUALAN', '2025-11-18 10:12:05'),
+(58, 60, 4, 96, 95, 'PENJUALAN', '2025-11-18 10:12:39'),
+(59, 61, 24, 98, 86, 'PENJUALAN', '2025-11-18 10:26:22'),
+(60, 62, 25, 98, 96, 'PENJUALAN', '2025-11-18 10:32:30'),
+(61, 63, 45, 100, 99, 'PENJUALAN', '2025-11-18 10:32:30'),
+(62, 64, 4, 94, 93, 'PENJUALAN', '2025-11-18 12:58:27'),
+(63, 65, 28, 98, 96, 'PENJUALAN', '2025-11-18 12:58:27'),
+(64, 66, 45, 98, 96, 'PENJUALAN', '2025-11-18 13:00:39'),
+(65, 67, 5, 96, 95, 'PENJUALAN', '2025-11-18 13:14:03');
 
 -- --------------------------------------------------------
 
@@ -171,7 +196,11 @@ INSERT INTO `pelanggan` (`ID_Pelanggan`, `Nama_Pelanggan`) VALUES
 (4, 'Dimas'),
 (5, 'Novia'),
 (6, 'Arif cihuy'),
-(7, 'Novia Kalcer');
+(7, 'Novia Kalcer'),
+(8, 'Novia Kalcer ui'),
+(9, 'Dimas dimsum for lifeeee'),
+(10, 'Alan walker'),
+(11, 'aalan lomt');
 
 --
 -- Triggers `pelanggan`
@@ -228,21 +257,20 @@ CREATE TABLE `produk` (
 --
 
 INSERT INTO `produk` (`ID_Produk`, `Nama_Produk`, `Harga`, `Stok`, `Gambar`, `ID_Kategori`, `ID_Supplier`) VALUES
-(1, 'Ayam Penyet Sak Segone', 16000.00, 98, NULL, 1, 1),
-(2, 'Tempe Penyet Sak Segone', 12000.00, 98, NULL, 1, 1),
-(3, 'Telur Penyet Sak Segone', 12000.00, 82, NULL, 1, 1),
-(4, 'Pentol Penyet Sak Segone', 12000.00, 98, NULL, 1, 1),
-(5, 'Ayam Geprek Sak Segone', 12000.00, 96, '6917f7960b11f_ayam_geprek_sak_segone.png', 1, 1),
-(6, 'Chicken Ricebowl (Blackpepper / Spicy Mayo)', 15000.00, 98, NULL, 1, 1),
+(1, 'Ayam Penyet Sak Segone', 16000.00, 94, '691b13a5cdcd1_ayam_penyet_sak_segone.jpeg', 1, 1),
+(2, 'Tempe Penyet Sak Segone', 12000.00, 94, '691b0a0f2dfbd_tempe_penyet_sak_segone.jpeg', 1, 1),
+(3, 'Telur Penyet Sak Segone', 12000.00, 83, '691b09eeddf18_telur_penyet_sak_segone.jpeg', 1, 1),
+(4, 'Pentol Penyet Sak Segone', 12000.00, 92, '691b13fde15c9_pentol_penyet_sak_segone.jpeg', 1, 1),
+(5, 'Ayam Geprek Sak Segone', 12000.00, 94, '6917f7960b11f_ayam_geprek_sak_segone.png', 1, 1),
 (7, 'Kopi Susu', 12000.00, 98, '6916f20d3ee1c_kopi_susu.png', 2, 2),
-(8, 'Cappuccino', 12000.00, 98, '6916f265a2c40_cappuccino.png', 2, 2),
+(8, 'Cappuccino', 12000.00, 96, '6916f265a2c40_cappuccino.png', 2, 2),
 (9, 'Mochachino', 14000.00, 98, '6916f2a46cd4c_mochachino.png', 2, 2),
 (10, 'Kopi Karamel', 14000.00, 98, '6916f32472c10_kopi_karamel.png', 2, 2),
 (11, 'Kopi Hazelnut', 14000.00, 98, '6917f38934387_kopi_hazelnut.png', 2, 2),
 (12, 'Kopi Aren', 14000.00, 98, '6917f336c59f6_kopi_aren.png', 2, 2),
 (13, 'Kopi Vanilla', 14000.00, 98, '6917f4a5d19bc_kopi_vanilla.png', 2, 2),
 (14, 'Kopi Pandan', 14000.00, 98, '6917f3f7cbf75_kopi_pandan.png', 2, 2),
-(15, 'Americano', 10000.00, 98, '6917f5b8b9b86_americano.png', 2, 2),
+(15, 'Americano', 10000.00, -98, '6917f5b8b9b86_americano.png', 2, 2),
 (16, 'Kopi Tubruk', 6000.00, 98, '6917f428b647a_kopi_tubruk.png', 2, 2),
 (17, 'Choco Almond', 14000.00, 98, '6917f192c5c08_choco_almond.png', 2, 2),
 (18, 'Milky Chocolate', 13000.00, 98, '6917e81873681_milky_chocolate.png', 2, 2),
@@ -251,21 +279,24 @@ INSERT INTO `produk` (`ID_Produk`, `Nama_Produk`, `Harga`, `Stok`, `Gambar`, `ID
 (21, 'Mango Squash', 10000.00, 98, '6916f638714ff_mango_squash.png', 2, 2),
 (22, 'Grape Squash', 10000.00, 98, '6916f4caf000a_grape_squash.png', 2, 2),
 (23, 'Red Velvet', 12000.00, 98, '6916f5d566753_red_velvet.png', 2, 2),
-(24, 'Matcha', 12000.00, 98, '6916f0c14cc2c_matcha.png', 2, 2),
-(25, 'Taro', 12000.00, 98, '6916f5ff29724_taro.png', 2, 2),
+(24, 'Matcha', 12000.00, 74, '6916f0c14cc2c_matcha.png', 2, 2),
+(25, 'Taro', 12000.00, 94, '6916f5ff29724_taro.png', 2, 2),
 (26, 'Lychee Tea', 8000.00, 98, '6916f5a396fa3_lychee_tea.png', 2, 2),
 (27, 'Lemon Tea', 8000.00, 98, '6916f52fd365d_lemon_tea.png', 2, 2),
-(28, 'Jasmine Tea', 5000.00, 98, '6917f12e93233_jasmine_tea.png', 2, 2),
-(29, 'Mix Platter (Kentang, Sosis, Nugget)', 12000.00, 98, NULL, 3, 3),
-(30, 'Otak Otak', 10000.00, 98, NULL, 3, 3),
-(31, 'Kentang Goreng', 12000.00, 98, NULL, 3, 3),
-(32, 'Sosis Goreng', 10000.00, 98, NULL, 3, 3),
-(33, 'Nugget Goreng', 12000.00, 98, NULL, 3, 3),
-(34, 'Cireng', 10000.00, 98, NULL, 3, 3),
-(35, 'Pentol Goreng', 12000.00, 98, NULL, 3, 3),
-(36, 'Risol', 12000.00, 98, NULL, 3, 3),
-(37, 'Roti Panggang (Coklat / Keju)', 8000.00, 98, NULL, 3, 3),
-(38, 'Pisang Goreng', 8000.00, 98, NULL, 3, 3);
+(28, 'Jasmine Tea', 5000.00, 94, '6917f12e93233_jasmine_tea.png', 2, 2),
+(29, 'Mix Platter (Kentang, Sosis, Nugget)', 12000.00, 98, '691b0f6866c53_mix_platter_(kentang,_sosis,_nugget).jpeg', 3, 3),
+(30, 'Otak Otak', 10000.00, 98, '691b0fec516f2_otak_otak.jpeg', 3, 3),
+(31, 'Kentang Goreng', 12000.00, 98, '691b0efb2b2db_kentang_goreng.jpeg', 3, 3),
+(32, 'Sosis Goreng', 10000.00, 98, '691b1025e0046_sosis_goreng.jpeg', 3, 3),
+(33, 'Nugget Goreng', 12000.00, 98, '691b10135232c_nugget_goreng.jpeg', 3, 3),
+(34, 'Cireng', 10000.00, 96, '691bd09cc1933_cireng.jpeg', 3, 3),
+(35, 'Pentol Goreng', 12000.00, 98, '691b132ef0cea_pentol_goreng.jpeg', 3, 3),
+(36, 'Risol', 12000.00, 98, '691b0f223a63c_risol.jpeg', 3, 3),
+(37, 'Roti Panggang (Coklat)', 8000.00, 94, '691b11e98df00_roti_panggang_(coklat).jpeg', 3, 3),
+(44, 'Chicken Ricebowl (Blackpepper)', 15000.00, 100, '691bd1a405ed8_chicken_ricebowl_(blackpepper).jpeg', 1, 1),
+(45, 'Chicken Ricebowl (Spicy Mayo)', 15000.00, 94, '691bd1d1c4aea_chicken_ricebowl_(spicy_mayo).jpeg', 1, 1),
+(46, 'Roti Panggang (Keju)', 8000.00, 100, '691b123223fc5_roti_panggang_(keju).jpeg', 3, 3),
+(48, 'ayam alan', 1222.00, 1, '691c0b452fdb6_ayam_alan.jpeg', 1, 2);
 
 -- --------------------------------------------------------
 
@@ -304,63 +335,80 @@ CREATE TABLE `transaksi_penjualan` (
   `Metode_Pembayaran` varchar(50) NOT NULL,
   `Jumlah_Barang` int(11) NOT NULL,
   `Total_Harga` decimal(12,2) NOT NULL,
-  `Nomor_Meja` varchar(10) DEFAULT NULL
+  `Nomor_Meja` varchar(10) DEFAULT NULL,
+  `order_status` enum('pending','processing','completed','cancelled') DEFAULT 'pending',
+  `transfer_proof` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `transaksi_penjualan`
 --
 
-INSERT INTO `transaksi_penjualan` (`ID_Transaksi_Penjualan`, `ID_Penjual`, `ID_Pelanggan`, `ID_Produk`, `Tanggal_Transaksi`, `Metode_Pembayaran`, `Jumlah_Barang`, `Total_Harga`, `Nomor_Meja`) VALUES
-(1, 1, 1, 1, '2025-10-06', 'Cash', 2, 32000.00, 'A1'),
-(2, 2, 2, 7, '2025-10-06', 'QRIS', 1, 12000.00, 'A2'),
-(3, 3, 3, 29, '2025-10-06', 'Cash', 3, 36000.00, 'B1'),
-(4, 2, 4, 25, '2025-10-06', 'Cash', 1, 12000.00, 'B2'),
-(5, 1, 5, 33, '2025-10-06', 'Transfer', 2, 24000.00, 'C1'),
-(6, 1, 6, 3, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(7, 1, 1, 3, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(8, 1, 1, 5, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(9, 1, 1, 1, '2025-11-15', 'Cash', 1, 16000.00, 'VIP 1'),
-(10, 1, 1, 6, '2025-11-15', 'Cash', 1, 15000.00, 'VIP 1'),
-(11, 1, 1, 2, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(12, 1, 1, 4, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(13, 1, 1, 15, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(14, 1, 1, 8, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(15, 1, 1, 17, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(16, 1, 1, 12, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(17, 1, 1, 28, '2025-11-15', 'Cash', 1, 5000.00, 'VIP 1'),
-(18, 1, 1, 22, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(19, 1, 1, 11, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(20, 1, 1, 10, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(21, 1, 1, 14, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(22, 1, 1, 13, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(23, 1, 1, 16, '2025-11-15', 'Cash', 1, 6000.00, 'VIP 1'),
-(24, 1, 1, 7, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(25, 1, 1, 27, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1'),
-(26, 1, 1, 20, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(27, 1, 1, 26, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1'),
-(28, 1, 1, 19, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(29, 1, 1, 24, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(30, 1, 1, 21, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(31, 1, 1, 18, '2025-11-15', 'Cash', 1, 13000.00, 'VIP 1'),
-(32, 1, 1, 9, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1'),
-(33, 1, 1, 23, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(34, 1, 1, 25, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(35, 1, 1, 34, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(36, 1, 1, 31, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(37, 1, 1, 29, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(38, 1, 1, 35, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(39, 1, 1, 30, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(40, 1, 1, 33, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(41, 1, 1, 38, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1'),
-(42, 1, 1, 36, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1'),
-(43, 1, 1, 37, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1'),
-(44, 1, 1, 32, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1'),
-(45, 1, 1, 3, '2025-11-16', 'Cash', 1, 12000.00, 'VIP 1'),
-(46, 1, 2, 3, '2025-11-16', 'Cash', 2, 24000.00, 'VIP 1'),
-(47, 1, 7, 3, '2025-11-17', 'Cash', 2, 24000.00, 'VIP 1'),
-(48, 1, 2, 3, '2025-11-17', 'Cash', 2, 24000.00, 'd'),
-(49, 1, 2, 5, '2025-11-17', 'Cash', 1, 12000.00, 'd');
+INSERT INTO `transaksi_penjualan` (`ID_Transaksi_Penjualan`, `ID_Penjual`, `ID_Pelanggan`, `ID_Produk`, `Tanggal_Transaksi`, `Metode_Pembayaran`, `Jumlah_Barang`, `Total_Harga`, `Nomor_Meja`, `order_status`, `transfer_proof`) VALUES
+(1, 1, 1, 1, '2025-10-06', 'Cash', 2, 32000.00, 'A1', 'completed', NULL),
+(2, 2, 2, 7, '2025-10-06', 'QRIS', 1, 12000.00, 'A2', 'completed', NULL),
+(3, 3, 3, 29, '2025-10-06', 'Cash', 3, 36000.00, 'B1', 'completed', NULL),
+(4, 2, 4, 25, '2025-10-06', 'Cash', 1, 12000.00, 'B2', 'completed', NULL),
+(5, 1, 5, 33, '2025-10-06', 'Transfer', 2, 24000.00, 'C1', 'completed', NULL),
+(7, 1, 1, 3, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(8, 1, 1, 5, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(9, 1, 1, 1, '2025-11-15', 'Cash', 1, 16000.00, 'VIP 1', 'completed', NULL),
+(11, 1, 1, 2, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(12, 1, 1, 4, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(13, 1, 1, 15, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(14, 1, 1, 8, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(15, 1, 1, 17, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(16, 1, 1, 12, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(17, 1, 1, 28, '2025-11-15', 'Cash', 1, 5000.00, 'VIP 1', 'completed', NULL),
+(18, 1, 1, 22, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(19, 1, 1, 11, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(20, 1, 1, 10, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(21, 1, 1, 14, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(22, 1, 1, 13, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(23, 1, 1, 16, '2025-11-15', 'Cash', 1, 6000.00, 'VIP 1', 'completed', NULL),
+(24, 1, 1, 7, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(25, 1, 1, 27, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1', 'completed', NULL),
+(26, 1, 1, 20, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(27, 1, 1, 26, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1', 'completed', NULL),
+(28, 1, 1, 19, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(29, 1, 1, 24, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(30, 1, 1, 21, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(31, 1, 1, 18, '2025-11-15', 'Cash', 1, 13000.00, 'VIP 1', 'completed', NULL),
+(32, 1, 1, 9, '2025-11-15', 'Cash', 1, 14000.00, 'VIP 1', 'completed', NULL),
+(33, 1, 1, 23, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(34, 1, 1, 25, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(35, 1, 1, 34, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(36, 1, 1, 31, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(37, 1, 1, 29, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(38, 1, 1, 35, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(39, 1, 1, 30, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(40, 1, 1, 33, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(42, 1, 1, 36, '2025-11-15', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(43, 1, 1, 37, '2025-11-15', 'Cash', 1, 8000.00, 'VIP 1', 'completed', NULL),
+(44, 1, 1, 32, '2025-11-15', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(45, 1, 1, 3, '2025-11-16', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(46, 1, 2, 3, '2025-11-16', 'Cash', 2, 24000.00, 'VIP 1', 'completed', NULL),
+(47, 1, 7, 3, '2025-11-17', 'Cash', 2, 24000.00, 'VIP 1', 'completed', NULL),
+(48, 1, 2, 3, '2025-11-17', 'Cash', 2, 24000.00, 'd', 'completed', NULL),
+(49, 1, 2, 5, '2025-11-17', 'Cash', 1, 12000.00, 'd', 'completed', NULL),
+(50, 1, 7, 37, '2025-11-18', 'Cash', 1, 8000.00, 'VIP 1', 'completed', NULL),
+(51, 1, 7, 37, '2025-11-18', 'Cash', 1, 8000.00, 'VIP 1', 'completed', NULL),
+(52, 1, 7, 2, '2025-11-18', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(53, 1, 7, 2, '2025-11-18', 'Transfer', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(54, 1, 2, 34, '2025-11-18', 'Cash', 1, 10000.00, 'VIP 1', 'completed', NULL),
+(55, 1, 2, 15, '2025-11-18', 'Cash', 98, 980000.00, 'VIP 1', 'completed', NULL),
+(56, 1, 2, 8, '2025-11-18', 'Transfer', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(57, 1, 2, 1, '2025-11-18', 'Cash', 1, 16000.00, 'VIP 1', 'completed', NULL),
+(58, 1, 7, 1, '2025-11-18', 'Cash', 1, 16000.00, 'VIP 1', 'completed', NULL),
+(59, 1, 7, 4, '2025-11-18', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(60, 1, 8, 4, '2025-11-18', 'Cash', 1, 12000.00, 'VIP 1', 'completed', NULL),
+(61, 1, 9, 24, '2025-11-18', 'Cash', 12, 144000.00, 'VIP 1', 'completed', NULL),
+(62, 1, 2, 25, '2025-11-18', 'Cash', 2, 24000.00, 'VIP 1', 'completed', NULL),
+(63, 1, 2, 45, '2025-11-18', 'Cash', 1, 15000.00, 'VIP 1', 'completed', NULL),
+(64, 1, 10, 4, '2025-11-18', 'Cash', 1, 12000.00, 'VIP 1', 'pending', NULL),
+(65, 1, 10, 28, '2025-11-18', 'Cash', 2, 10000.00, 'VIP 1', 'pending', NULL),
+(66, 1, 11, 45, '2025-11-18', 'Cash', 2, 30000.00, 'qqq', 'pending', NULL),
+(67, 1, 7, 5, '2025-11-18', 'Cash', 1, 12000.00, 'VIP 1', 'pending', NULL);
 
 --
 -- Triggers `transaksi_penjualan`
@@ -431,13 +479,12 @@ DELIMITER ;
 
 CREATE TABLE `ulasan` (
   `ID_Ulasan` int(11) NOT NULL,
-  `Nama_Pelanggan` varchar(100) NOT NULL,
-  `ID_Pelanggan` int(11) DEFAULT NULL,
-  `ID_Produk` int(11) DEFAULT NULL,
+  `Nama_Pelanggan` varchar(100) NOT NULL DEFAULT 'Pelanggan',
   `Rating` int(11) NOT NULL CHECK (`Rating` between 1 and 5),
   `Judul_Ulasan` varchar(200) NOT NULL,
   `Isi_Ulasan` text NOT NULL,
   `Rekomendasi` enum('yes','no') NOT NULL,
+  `Foto_Ulasan` varchar(255) DEFAULT NULL,
   `Tanggal_Ulasan` datetime DEFAULT current_timestamp(),
   `Status` enum('pending','approved','rejected') DEFAULT 'pending'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -446,13 +493,23 @@ CREATE TABLE `ulasan` (
 -- Dumping data for table `ulasan`
 --
 
-INSERT INTO `ulasan` (`ID_Ulasan`, `Nama_Pelanggan`, `ID_Pelanggan`, `ID_Produk`, `Rating`, `Judul_Ulasan`, `Isi_Ulasan`, `Rekomendasi`, `Tanggal_Ulasan`, `Status`) VALUES
-(1, 'Dinda', NULL, NULL, 5, 'mntap', 'asadsfghgfdsAsdfksghszarjkra', 'yes', '2025-11-16 21:27:54', 'approved'),
-(2, 'Cikal', NULL, NULL, 5, 'mntap', 'atsydjfglhgfjfsatjykdwafgh', 'yes', '2025-11-16 22:35:43', 'approved'),
-(3, 'Cikal', NULL, NULL, 5, 'mntap', 'alkfhowuiegfuiqwh89gtyq2-89phgnpuieGFQ', 'yes', '2025-11-17 08:01:19', 'approved'),
-(4, 'test', NULL, NULL, 5, 'ya', '1234567890', 'yes', '2025-11-17 09:01:43', 'approved'),
-(5, 'Cikal', NULL, NULL, 5, 'mntap', 'lhhwdfwujhfljkBIUDGQFYUAGHJFAOFYAPIG', 'yes', '2025-11-17 09:08:35', 'approved'),
-(6, 'Cikal', NULL, NULL, 5, 'mntap', 'afdsdhgffjhgoihljkl;jhjhfgfxfdses', 'yes', '2025-11-17 12:09:55', 'approved');
+INSERT INTO `ulasan` (`ID_Ulasan`, `Nama_Pelanggan`, `Rating`, `Judul_Ulasan`, `Isi_Ulasan`, `Rekomendasi`, `Foto_Ulasan`, `Tanggal_Ulasan`, `Status`) VALUES
+(2, 'Cikal', 5, 'mntap', 'atsydjfglhgfjfsatjykdwafgh', 'yes', NULL, '2025-11-16 22:35:43', 'approved'),
+(3, 'Cikal', 5, 'mntap', 'alkfhowuiegfuiqwh89gtyq2-89phgnpuieGFQ', 'yes', NULL, '2025-11-17 08:01:19', 'approved'),
+(5, 'Cikal', 5, 'mntap', 'lhhwdfwujhfljkBIUDGQFYUAGHJFAOFYAPIG', 'yes', NULL, '2025-11-17 09:08:35', 'approved'),
+(6, 'Cikal', 5, 'mntap', 'afdsdhgffjhgoihljkl;jhjhfgfxfdses', 'yes', NULL, '2025-11-17 12:09:55', 'approved'),
+(7, 'Cikal', 5, 'mntap', 'w\';djewjklhfioewjvopiewjvpoe', 'yes', NULL, '2025-11-18 08:04:50', 'approved'),
+(8, 'Cikal', 5, 'DAN YAPPP', 'WELLLLLLLLLLLLLLLLLLLLLLL', 'yes', NULL, '2025-11-18 08:11:39', 'approved'),
+(9, 'Cikal', 5, 'mntap', 'ASDSDGFDHGFKULUYIRUD', 'yes', NULL, '2025-11-18 09:21:44', 'approved'),
+(10, 'Cikal', 5, 'aku cikal', 'qWFERWYHTERJTRYSKYTKTUKTUKT', 'yes', NULL, '2025-11-18 09:24:45', 'approved'),
+(11, 'Dinda', 5, 'DAN YAPPP CIhuy', 'reyrahetrhergawehgerj', 'yes', NULL, '2025-11-18 09:31:34', 'approved'),
+(12, 'Cikal', 5, 'wefpwirhfiuewofuhewf', 'erhertyjersedhdfgesefw', 'yes', NULL, '2025-11-18 09:39:43', 'approved'),
+(13, 'Cikal', 5, 'DAN YAPPPPPPPPPPPPPPPP', 'ARIFF KALLCERR ABIXZZZZZZ', 'yes', NULL, '2025-11-18 09:42:13', 'approved'),
+(14, 'Dinda', 5, 'AKU KALCERRRRRR', 'NOPIA KALCERRRRRR', 'yes', NULL, '2025-11-18 09:44:39', 'approved'),
+(15, 'Cikal', 5, 'wefpwirhfiuewofuhewf', 'wqeastjdzarhdfavasgfsndfmd', 'no', NULL, '2025-11-18 09:48:41', 'approved'),
+(16, 'Cikal', 5, 'DAN YAPPP CIhuy', 'esrjdgdsfawr32ryersdhsdgsfg', 'yes', NULL, '2025-11-18 09:58:26', 'pending'),
+(17, 'Cikal arya', 5, 'mntap', 'cafe keren dan kalcer', 'yes', NULL, '2025-11-18 10:33:35', 'approved'),
+(18, 'Cikal', 4, 'mantapp', 'mantapppppppppppppppp', 'yes', NULL, '2025-11-18 10:35:15', 'approved');
 
 --
 -- Indexes for dumped tables
@@ -516,8 +573,6 @@ ALTER TABLE `transaksi_penjualan`
 --
 ALTER TABLE `ulasan`
   ADD PRIMARY KEY (`ID_Ulasan`),
-  ADD KEY `ID_Pelanggan` (`ID_Pelanggan`),
-  ADD KEY `ID_Produk` (`ID_Produk`),
   ADD KEY `idx_status` (`Status`),
   ADD KEY `idx_tanggal` (`Tanggal_Ulasan`),
   ADD KEY `idx_rating` (`Rating`);
@@ -536,19 +591,19 @@ ALTER TABLE `kategori`
 -- AUTO_INCREMENT for table `log_pelanggan`
 --
 ALTER TABLE `log_pelanggan`
-  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `log_transaksi`
 --
 ALTER TABLE `log_transaksi`
-  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
+  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
 
 --
 -- AUTO_INCREMENT for table `pelanggan`
 --
 ALTER TABLE `pelanggan`
-  MODIFY `ID_Pelanggan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `ID_Pelanggan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `penjual`
@@ -560,7 +615,7 @@ ALTER TABLE `penjual`
 -- AUTO_INCREMENT for table `produk`
 --
 ALTER TABLE `produk`
-  MODIFY `ID_Produk` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+  MODIFY `ID_Produk` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
 
 --
 -- AUTO_INCREMENT for table `supplier`
@@ -572,13 +627,13 @@ ALTER TABLE `supplier`
 -- AUTO_INCREMENT for table `transaksi_penjualan`
 --
 ALTER TABLE `transaksi_penjualan`
-  MODIFY `ID_Transaksi_Penjualan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `ID_Transaksi_Penjualan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `ulasan`
 --
 ALTER TABLE `ulasan`
-  MODIFY `ID_Ulasan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `ID_Ulasan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- Constraints for dumped tables
@@ -598,13 +653,6 @@ ALTER TABLE `transaksi_penjualan`
   ADD CONSTRAINT `transaksi_penjualan_ibfk_1` FOREIGN KEY (`ID_Penjual`) REFERENCES `penjual` (`ID_Penjual`),
   ADD CONSTRAINT `transaksi_penjualan_ibfk_2` FOREIGN KEY (`ID_Pelanggan`) REFERENCES `pelanggan` (`ID_Pelanggan`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `transaksi_penjualan_ibfk_3` FOREIGN KEY (`ID_Produk`) REFERENCES `produk` (`ID_Produk`);
-
---
--- Constraints for table `ulasan`
---
-ALTER TABLE `ulasan`
-  ADD CONSTRAINT `ulasan_ibfk_1` FOREIGN KEY (`ID_Pelanggan`) REFERENCES `pelanggan` (`ID_Pelanggan`) ON DELETE SET NULL,
-  ADD CONSTRAINT `ulasan_ibfk_2` FOREIGN KEY (`ID_Produk`) REFERENCES `produk` (`ID_Produk`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -239,6 +239,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
+    // ===== ORDER MANAGEMENT ACTIONS =====
+    
+    // Complete Order
+    if (isset($_POST['complete_order'])) {
+        $order_id = $_POST['order_id'];
+        try {
+            $stmt = $pdo->prepare("UPDATE transaksi_penjualan SET order_status = 'completed' WHERE ID_Transaksi_Penjualan = ?");
+            if ($stmt->execute([$order_id])) {
+                $_SESSION['success_message'] = "✅ Order #$order_id berhasil diselesaikan!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
+    // Cancel Order
+    if (isset($_POST['cancel_order'])) {
+        $order_id = $_POST['order_id'];
+        try {
+            $stmt = $pdo->prepare("UPDATE transaksi_penjualan SET order_status = 'cancelled' WHERE ID_Transaksi_Penjualan = ?");
+            if ($stmt->execute([$order_id])) {
+                $_SESSION['success_message'] = "✅ Order #$order_id berhasil dibatalkan!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
+    // Assign Seller to Order
+    if (isset($_POST['assign_seller'])) {
+        $order_id = $_POST['order_id'];
+        $seller_id = $_POST['seller_id'];
+        
+        try {
+            $stmt = $pdo->prepare("UPDATE transaksi_penjualan SET ID_Penjual = ?, order_status = 'processing' WHERE ID_Transaksi_Penjualan = ?");
+            if ($stmt->execute([$seller_id, $order_id])) {
+                // Get seller name for success message
+                $seller_stmt = $pdo->prepare("SELECT Nama_Karyawan FROM penjual WHERE ID_Penjual = ?");
+                $seller_stmt->execute([$seller_id]);
+                $seller = $seller_stmt->fetch(PDO::FETCH_ASSOC);
+                
+                $_SESSION['success_message'] = "✅ Seller {$seller['Nama_Karyawan']} berhasil ditugaskan ke Order #$order_id!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
+    // Update Order Status
+    if (isset($_POST['update_order_status'])) {
+        $order_id = $_POST['order_id'];
+        $new_status = $_POST['order_status'];
+        
+        try {
+            $stmt = $pdo->prepare("UPDATE transaksi_penjualan SET order_status = ? WHERE ID_Transaksi_Penjualan = ?");
+            if ($stmt->execute([$new_status, $order_id])) {
+                $_SESSION['success_message'] = "✅ Status Order #$order_id berhasil diubah menjadi " . ucfirst($new_status) . "!";
+            }
+        } catch(PDOException $e) {
+            $_SESSION['error_message'] = "❌ Error: " . $e->getMessage();
+        }
+    }
+    
     header('Location: ' . $_SERVER['PHP_SELF'] . (isset($_GET['section']) ? '?section=' . $_GET['section'] : ''));
     exit;
 }
@@ -351,6 +414,47 @@ $review_stmt = $pdo->prepare("
 ");
 $review_stmt->execute($review_params);
 $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ===== ORDER MANAGEMENT DATA =====
+$order_status = $_GET['order_status'] ?? 'all';
+$order_where = "";
+$order_params = [];
+
+if ($order_status !== 'all') {
+    $order_where = "WHERE tp.order_status = ?";
+    $order_params[] = $order_status;
+}
+
+// Query untuk mendapatkan data orders yang dikelompokkan
+$orders_query = "
+    SELECT 
+        tp.ID_Transaksi_Penjualan as order_id,
+        p.Nama_Pelanggan as customer_name,
+        tp.Nomor_Meja as table_number,
+        COUNT(DISTINCT tp2.ID_Produk) as item_count,
+        SUM(tp.Total_Harga) as total_amount,
+        tp.Metode_Pembayaran as payment_method,
+        tp.order_status,
+        pen.Nama_Karyawan as seller_name,
+        tp.Tanggal_Transaksi as order_date,
+        GROUP_CONCAT(DISTINCT pr.Nama_Produk SEPARATOR ', ') as items,
+        tp.transfer_proof
+    FROM transaksi_penjualan tp
+    LEFT JOIN pelanggan p ON tp.ID_Pelanggan = p.ID_Pelanggan
+    LEFT JOIN penjual pen ON tp.ID_Penjual = pen.ID_Penjual
+    LEFT JOIN produk pr ON tp.ID_Produk = pr.ID_Produk
+    LEFT JOIN transaksi_penjualan tp2 ON tp.ID_Transaksi_Penjualan = tp2.ID_Transaksi_Penjualan
+    $order_where
+    GROUP BY tp.ID_Transaksi_Penjualan
+    ORDER BY tp.Tanggal_Transaksi DESC
+";
+
+$orders_stmt = $pdo->prepare($orders_query);
+$orders_stmt->execute($order_params);
+$orders = $orders_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Ambil semua seller
+$sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -1048,6 +1152,249 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
       gap: 1rem;
     }
 
+    /* Order Management Styles */
+    .order-preview {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      border: 1px solid var(--cafe-border);
+    }
+
+    .order-preview h4 {
+      color: var(--cafe-main);
+      margin-bottom: 0.5rem;
+    }
+
+    .order-preview p {
+      margin: 0.25rem 0;
+      color: var(--cafe-text-light);
+    }
+
+    .transfer-proof {
+      max-width: 200px;
+      max-height: 150px;
+      border-radius: 8px;
+      border: 2px solid var(--cafe-border);
+      cursor: pointer;
+    }
+
+    .transfer-proof-large {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: 8px;
+      border: 2px solid var(--cafe-main);
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--cafe-card);
+      border-radius: 15px;
+      width: 100%;
+      max-width: 500px;
+      border: 2px solid var(--cafe-main);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--cafe-border);
+    }
+
+    .modal-header h3 {
+      color: var(--cafe-main);
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--cafe-text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .modal-close:hover {
+      color: var(--cafe-main);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding: 1.5rem;
+      border-top: 1px solid var(--cafe-border);
+      gap: 1rem;
+    }
+    /* === BASE STYLES === */
+.order-table-container {
+    background: var(--cafe-secondary);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    overflow-x: auto;
+}
+
+.order-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--cafe-text);
+}
+
+.order-table th {
+    background: var(--cafe-primary);
+    padding: 12px;
+    text-align: left;
+    color: white;
+}
+
+.order-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--cafe-accent);
+}
+
+.action-btn {
+    padding: 8px 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 6px;
+}
+
+.assign-btn {
+    background: var(--cafe-primary);
+    color: white;
+}
+.assign-btn:hover {
+    background: #b38600;
+}
+
+.delete-btn {
+    background: #b30000;
+    color: white;
+}
+.delete-btn:hover {
+    background: #800000;
+}
+
+.details-btn {
+    background: var(--cafe-accent);
+    color: black;
+}
+
+.status-paid {
+    color: #00cc44;
+    font-weight: bold;
+}
+
+.status-unpaid {
+    color: #ff3333;
+    font-weight: bold;
+}
+
+/* === MODAL === */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    background: var(--cafe-secondary);
+    margin: 100px auto;
+    padding: 20px;
+    width: 50%;
+    border-radius: 12px;
+    color: white;
+}
+
+.close-modal {
+    float: right;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--cafe-text);
+}
+
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--cafe-accent);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--cafe-text);
+}
+
+.save-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--cafe-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.save-btn:hover {
+    background: #b38600;
+}
+
+/* ========================================================= */
+/* === FIX: Dropdown Assign Seller biar tulisan tidak putih === */
+/* ========================================================= */
+
+.form-group select,
+.form-group select option {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Jika select punya ID seperti seller_id, aktifkan ini:
+#seller_id,
+#seller_id option {
+    background: #fff !important;
+    color: #000 !important;
+}
+*/
+
     /* Mobile Menu Toggle */
     .menu-toggle {
       display: none;
@@ -1164,6 +1511,10 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
       <a href="#" class="menu-item active" data-section="dashboard">
         <i class="fas fa-tachometer-alt"></i>
         <span class="menu-text">Dashboard</span>
+      </a>
+      <a href="#" class="menu-item" data-section="orders">
+        <i class="fas fa-shopping-bag"></i>
+        <span class="menu-text">Order Management</span>
       </a>
       <a href="#" class="menu-item" data-section="products">
         <i class="fas fa-coffee"></i>
@@ -1337,6 +1688,131 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Order Management Section -->
+      <div id="orders" class="admin-section">
+        <div class="main-header">
+          <div>
+            <h1 class="page-title">📦 Order Management</h1>
+            <p class="page-subtitle">Kelola status pesanan dan tentukan seller yang melayani</p>
+          </div>
+        </div>
+
+        <!-- Order Status Filter -->
+        <div class="form-container">
+            <form method="GET" id="orderFilterForm">
+                <input type="hidden" name="section" value="orders">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Filter Status Order</label>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" class="status-filter-btn <?php echo $order_status === 'all' ? 'active' : ''; ?>" data-status="all">All Orders</button>
+                            <button type="button" class="status-filter-btn <?php echo $order_status === 'pending' ? 'active' : ''; ?>" data-status="pending">Pending</button>
+                            <button type="button" class="status-filter-btn <?php echo $order_status === 'processing' ? 'active' : ''; ?>" data-status="processing">Processing</button>
+                            <button type="button" class="status-filter-btn <?php echo $order_status === 'completed' ? 'active' : ''; ?>" data-status="completed">Completed</button>
+                            <button type="button" class="status-filter-btn <?php echo $order_status === 'cancelled' ? 'active' : ''; ?>" data-status="cancelled">Cancelled</button>
+                        </div>
+                        <input type="hidden" name="order_status" id="orderStatus" value="<?php echo $order_status; ?>">
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="recent-table">
+            <h3><i class="fas fa-list"></i> Daftar Pesanan</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Meja</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Metode Bayar</th>
+                        <th>Status</th>
+                        <th>Seller</th>
+                        <th>Tanggal</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($orders)): ?>
+                        <tr>
+                            <td colspan="10" style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                                <i class="fas fa-shopping-bag"></i> No orders found
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($orders as $order): ?>
+                        <tr>
+                            <td><strong>#<?php echo $order['order_id']; ?></strong></td>
+                            <td><?php echo htmlspecialchars($order['customer_name'] ?? 'Guest'); ?></td>
+                            <td><?php echo htmlspecialchars($order['table_number'] ?? '-'); ?></td>
+                            <td>
+                                <span title="<?php echo htmlspecialchars($order['items']); ?>">
+                                    <?php echo $order['item_count']; ?> items
+                                </span>
+                            </td>
+                            <td>Rp <?php echo number_format($order['total_amount'], 0, ',', '.'); ?></td>
+                            <td>
+                                <span class="badge <?php 
+                                    echo $order['payment_method'] === 'Cash' ? 'success' : 
+                                         ($order['payment_method'] === 'Transfer' ? 'warning' : 'info'); 
+                                ?>">
+                                    <?php echo $order['payment_method']; ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge <?php 
+                                    echo $order['order_status'] === 'completed' ? 'success' : 
+                                         ($order['order_status'] === 'processing' ? 'warning' : 
+                                         ($order['order_status'] === 'cancelled' ? 'danger' : 'info')); 
+                                ?>">
+                                    <?php echo ucfirst($order['order_status']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($order['seller_name']): ?>
+                                    <?php echo htmlspecialchars($order['seller_name']); ?>
+                                <?php else: ?>
+                                    <span class="badge warning">Belum ditugaskan</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo date('M d, Y H:i', strtotime($order['order_date'])); ?></td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="action-btn edit" onclick="showOrderDetails(<?php echo $order['order_id']; ?>)" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="action-btn edit" onclick="assignSeller(<?php echo $order['order_id']; ?>)" title="Assign Seller" style="background: var(--info);">
+                                        <i class="fas fa-user-tag"></i>
+                                    </button>
+                                    <?php if ($order['order_status'] === 'pending' || $order['order_status'] === 'processing'): ?>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
+                                            <button type="submit" name="complete_order" class="action-btn edit" title="Complete Order" style="background: var(--success);">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if ($order['order_status'] === 'pending'): ?>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="order_id" value="<?php echo $order['order_id']; ?>">
+                                            <button type="submit" name="cancel_order" class="action-btn delete" title="Cancel Order">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
       </div>
 
@@ -2009,6 +2485,63 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
   </div>
 
+  <!-- Assign Seller Modal -->
+  <div class="modal" id="assignSellerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-user-tag"></i> Assign Seller to Order</h3>
+        <button class="modal-close" onclick="closeAssignSellerModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form method="POST" id="assignSellerForm">
+        <input type="hidden" name="order_id" id="assign_order_id">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="seller_id">Pilih Seller:</label>
+            <select id="seller_id" name="seller_id" required>
+              <option value="">Pilih Seller</option>
+              <?php foreach ($sellers as $seller): ?>
+                <option value="<?php echo $seller['ID_Penjual']; ?>">
+                  <?php echo htmlspecialchars($seller['Nama_Karyawan']); ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="order-preview" id="orderPreview">
+            <!-- Order preview will be loaded here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeAssignSellerModal()">Batal</button>
+          <button type="submit" name="assign_seller" class="btn btn-primary">
+            <i class="fas fa-user-tag"></i> Assign Seller
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Order Details Modal -->
+  <div class="modal" id="orderDetailsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-info-circle"></i> Order Details</h3>
+        <button class="modal-close" onclick="closeOrderDetailsModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="orderDetailsBody">
+          <!-- Order details will be loaded here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeOrderDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Navigation between sections
     document.addEventListener('DOMContentLoaded', function() {
@@ -2051,6 +2584,29 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
                 });
             });
         }
+
+        // Order filter functionality
+        const orderFilterBtns = document.querySelectorAll('#orders .status-filter-btn');
+        const orderStatusInput = document.getElementById('orderStatus');
+        const orderFilterForm = document.getElementById('orderFilterForm');
+        
+        if (orderFilterBtns && orderStatusInput && orderFilterForm) {
+            orderFilterBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const status = this.getAttribute('data-status');
+                    
+                    // Update active button
+                    orderFilterBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update hidden input
+                    orderStatusInput.value = status;
+                    
+                    // Submit form
+                    orderFilterForm.submit();
+                });
+            });
+        }
     });
 
     function showSection(sectionId) {
@@ -2074,6 +2630,7 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
     function updatePageTitle(section) {
         const titles = {
             'dashboard': '📊 Dashboard Overview',
+            'orders': '📦 Order Management',
             'products': '☕ Menu Management',
             'transactions': '💰 Transactions',
             'customers': '👥 Customers',
@@ -2261,11 +2818,159 @@ $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
         document.body.style.overflow = 'auto';
     }
 
+    // Order Management Functions
+    function assignSeller(orderId) {
+        document.getElementById('assign_order_id').value = orderId;
+        
+        // Load order details for preview
+        fetch(`get_order_details.php?order_id=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const orderPreview = document.getElementById('orderPreview');
+                    orderPreview.innerHTML = `
+                        <h4>Order Details:</h4>
+                        <p><strong>Customer:</strong> ${data.order.customer_name}</p>
+                        <p><strong>Table:</strong> ${data.order.table_number}</p>
+                        <p><strong>Items:</strong> ${data.order.items}</p>
+                        <p><strong>Total:</strong> Rp ${data.order.total_amount.toLocaleString('id-ID')}</p>
+                        <p><strong>Status:</strong> <span class="badge ${data.order.order_status}">${data.order.order_status}</span></p>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading order details:', error);
+            });
+        
+        document.getElementById('assignSellerModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAssignSellerModal() {
+        document.getElementById('assignSellerModal').classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+
+    function showOrderDetails(orderId) {
+        fetch(`get_order_details.php?order_id=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const orderDetails = document.getElementById('orderDetailsBody');
+                    let transferProofHtml = '';
+                    
+                    if (data.order.transfer_proof) {
+                        transferProofHtml = `
+                            <div>
+                                <strong>Bukti Transfer:</strong>
+                                <div style="margin-top: 0.5rem;">
+                                    <img src="assets/images/transfer_proofs/${data.order.transfer_proof}" 
+                                         alt="Bukti Transfer" 
+                                         class="transfer-proof"
+                                         onclick="this.classList.toggle('transfer-proof-large')"
+                                         style="cursor: pointer;">
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    orderDetails.innerHTML = `
+                        <div class="order-detail">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <strong>Order ID:</strong>
+                                    <p>#${data.order.order_id}</p>
+                                </div>
+                                <div class="form-group">
+                                    <strong>Tanggal:</strong>
+                                    <p>${new Date(data.order.order_date).toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <strong>Customer:</strong>
+                                    <p>${data.order.customer_name}</p>
+                                </div>
+                                <div class="form-group">
+                                    <strong>Meja:</strong>
+                                    <p>${data.order.table_number}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <strong>Metode Pembayaran:</strong>
+                                    <p><span class="badge ${data.order.payment_method === 'Cash' ? 'success' : 'warning'}">${data.order.payment_method}</span></p>
+                                </div>
+                                <div class="form-group">
+                                    <strong>Status:</strong>
+                                    <p><span class="badge ${data.order.order_status}">${data.order.order_status}</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <strong>Seller:</strong>
+                                <p>${data.order.seller_name || '<span class="badge warning">Belum ditugaskan</span>'}</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <strong>Items:</strong>
+                                <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                    ${data.order.items.split(', ').map(item => `<div style="padding: 0.25rem 0;">• ${item}</div>`).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <strong>Total Amount:</strong>
+                                <p style="font-size: 1.2rem; font-weight: bold; color: var(--cafe-main);">
+                                    Rp ${data.order.total_amount.toLocaleString('id-ID')}
+                                </p>
+                            </div>
+                            
+                            ${transferProofHtml}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('orderDetailsBody').innerHTML = `
+                        <div style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                            <i class="fas fa-exclamation-circle"></i> Error loading order details
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading order details:', error);
+                document.getElementById('orderDetailsBody').innerHTML = `
+                    <div style="text-align: center; color: var(--cafe-text-light); padding: 2rem;">
+                        <i class="fas fa-exclamation-circle"></i> Error loading order details
+                    </div>
+                `;
+            });
+        
+        document.getElementById('orderDetailsModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeOrderDetailsModal() {
+        document.getElementById('orderDetailsModal').classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+
     // Close modal when clicking outside
     document.addEventListener('click', function(e) {
-        const modal = document.getElementById('reviewModal');
-        if (e.target === modal) {
+        const reviewModal = document.getElementById('reviewModal');
+        const assignSellerModal = document.getElementById('assignSellerModal');
+        const orderDetailsModal = document.getElementById('orderDetailsModal');
+        
+        if (e.target === reviewModal) {
             closeReviewModal();
+        }
+        if (e.target === assignSellerModal) {
+            closeAssignSellerModal();
+        }
+        if (e.target === orderDetailsModal) {
+            closeOrderDetailsModal();
         }
     });
 
