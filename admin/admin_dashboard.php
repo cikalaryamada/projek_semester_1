@@ -414,46 +414,6 @@ $review_stmt = $pdo->prepare("
 ");
 $review_stmt->execute($review_params);
 $reviews = $review_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// ===== ORDER MANAGEMENT DATA =====
-$order_status = $_GET['order_status'] ?? 'all';
-$order_where = "";
-$order_params = [];
-
-if ($order_status !== 'all') {
-    $order_where = "WHERE tp.order_status = ?";
-    $order_params[] = $order_status;
-}
-
-// Query untuk mendapatkan data orders yang dikelompokkan
-$orders_query = "
-    SELECT 
-        tp.ID_Transaksi_Penjualan as order_id,
-        p.Nama_Pelanggan as customer_name,
-        tp.Nomor_Meja as table_number,
-        COUNT(DISTINCT tp2.ID_Produk) as item_count,
-        SUM(tp.Total_Harga) as total_amount,
-        tp.Metode_Pembayaran as payment_method,
-        tp.order_status,
-        pen.Nama_Karyawan as seller_name,
-        tp.Tanggal_Transaksi as order_date,
-        GROUP_CONCAT(DISTINCT pr.Nama_Produk SEPARATOR ', ') as items
-    FROM transaksi_penjualan tp
-    LEFT JOIN pelanggan p ON tp.ID_Pelanggan = p.ID_Pelanggan
-    LEFT JOIN penjual pen ON tp.ID_Penjual = pen.ID_Penjual
-    LEFT JOIN produk pr ON tp.ID_Produk = pr.ID_Produk
-    LEFT JOIN transaksi_penjualan tp2 ON tp.ID_Transaksi_Penjualan = tp2.ID_Transaksi_Penjualan
-    $order_where
-    GROUP BY tp.ID_Transaksi_Penjualan
-    ORDER BY tp.Tanggal_Transaksi DESC
-";
-
-$orders_stmt = $pdo->prepare($orders_query);
-$orders_stmt->execute($order_params);
-$orders = $orders_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Ambil semua seller
-$sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -1142,111 +1102,6 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
     }
 
     .review-modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      padding: 1.5rem;
-      border-top: 1px solid var(--cafe-border);
-      gap: 1rem;
-    }
-
-    /* Order Management Styles */
-    .order-preview {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 1rem;
-      border-radius: 8px;
-      margin-top: 1rem;
-      border: 1px solid var(--cafe-border);
-    }
-
-    .order-preview h4 {
-      color: var(--cafe-main);
-      margin-bottom: 0.5rem;
-    }
-
-    .order-preview p {
-      margin: 0.25rem 0;
-      color: var(--cafe-text-light);
-    }
-
-    .transfer-proof {
-      max-width: 200px;
-      max-height: 150px;
-      border-radius: 8px;
-      border: 2px solid var(--cafe-border);
-      cursor: pointer;
-    }
-
-    .transfer-proof-large {
-      max-width: 100%;
-      max-height: 400px;
-      border-radius: 8px;
-      border: 2px solid var(--cafe-main);
-    }
-
-    /* Modal Styles */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-
-    .modal.show {
-      display: flex;
-    }
-
-    .modal-content {
-      background: var(--cafe-card);
-      border-radius: 15px;
-      width: 100%;
-      max-width: 500px;
-      border: 2px solid var(--cafe-main);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.5rem;
-      border-bottom: 1px solid var(--cafe-border);
-    }
-
-    .modal-header h3 {
-      color: var(--cafe-main);
-      font-size: 1.3rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .modal-close {
-      background: none;
-      border: none;
-      color: var(--cafe-text);
-      font-size: 1.5rem;
-      cursor: pointer;
-      transition: color 0.3s ease;
-    }
-
-    .modal-close:hover {
-      color: var(--cafe-main);
-    }
-
-    .modal-body {
-      padding: 1.5rem;
-    }
-
-    .modal-footer {
       display: flex;
       justify-content: flex-end;
       padding: 1.5rem;
@@ -2440,29 +2295,6 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
                     
                     // Submit form
                     reviewFilterForm.submit();
-                });
-            });
-        }
-
-        // Order filter functionality
-        const orderFilterBtns = document.querySelectorAll('#orders .status-filter-btn[data-status]');
-        const orderStatusInput = document.getElementById('orderStatus');
-        const orderFilterForm = document.getElementById('orderFilterForm');
-        
-        if (orderFilterBtns && orderStatusInput && orderFilterForm) {
-            orderFilterBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const status = this.getAttribute('data-status');
-                    
-                    // Update active button
-                    orderFilterBtns.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Update hidden input
-                    orderStatusInput.value = status;
-                    
-                    // Submit form
-                    orderFilterForm.submit();
                 });
             });
         }
