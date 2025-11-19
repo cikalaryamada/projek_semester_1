@@ -2,6 +2,7 @@
 // process_order.php
 session_start();
 
+// NOTE: Transfer payment method removed. Backend now validates and accepts only allowed payment methods (cash, qris).
 // Koneksi database
 $configs = [
     ['localhost', 'umkmk16', 'root', '']
@@ -26,16 +27,26 @@ if (!$pdo) {
 // Enable CORS untuk development
 header('Content-Type: application/json');
 
-if ($_POST['action'] == 'process_order') {
+if (isset($_POST['action']) && $_POST['action'] == 'process_order') {
     try {
         $pdo->beginTransaction();
         
         // Data dari AJAX
-        $customerName = $_POST['customer_name'];
-        $tableNumber = $_POST['table_number'];
-        $paymentMethod = $_POST['payment_method'];
-        $orderId = $_POST['order_id'];
-        $cartItems = json_decode($_POST['cart_items'], true);
+        $customerName = $_POST['customer_name'] ?? '';
+        $tableNumber = $_POST['table_number'] ?? '';
+        $paymentMethod = $_POST['payment_method'] ?? 'cash';
+        $orderId = $_POST['order_id'] ?? '';
+        $cartItems = json_decode($_POST['cart_items'] ?? '[]', true);
+        
+        // Normalisasi dan validasi metode pembayaran: hanya 'cash' dan 'qris' diperbolehkan.
+        $paymentMethod = strtolower(trim($paymentMethod));
+        if ($paymentMethod !== 'cash' && $paymentMethod !== 'qris') {
+            // Default ke cash jika ada nilai tidak dikenal
+            $paymentMethod = 'cash';
+        }
+        $paymentMethodDb = $paymentMethod === 'cash' ? 'Cash' : 'QRIS';
+        // Untuk pembayaran tunai, kita bisa set status completed langsung; untuk lainnya pending.
+        $order_status = $paymentMethod === 'cash' ? 'completed' : 'pending';
         
         // Validasi data
         if (empty($customerName) || empty($tableNumber) || empty($cartItems)) {
@@ -78,19 +89,20 @@ if ($_POST['action'] == 'process_order') {
             $totalAmount += $itemTotal;
             
             // Insert ke transaksi_penjualan
-$stmt = $pdo->prepare("
-    INSERT INTO transaksi_penjualan 
-    (ID_Penjual, ID_Pelanggan, ID_Produk, Tanggal_Transaksi, Metode_Pembayaran, Jumlah_Barang, Total_Harga, Nomor_Meja, order_status) 
-    VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, 'pending')
-");
+            $stmt = $pdo->prepare("
+                INSERT INTO transaksi_penjualan 
+                (ID_Penjual, ID_Pelanggan, ID_Produk, Tanggal_Transaksi, Metode_Pembayaran, Jumlah_Barang, Total_Harga, Nomor_Meja, order_status) 
+                VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?)
+            ");
             $stmt->execute([
                 $penjualId,
                 $customerId,
                 $item['id'],
-                ucfirst($paymentMethod), // Cash atau Transfer
+                $paymentMethodDb,
                 $item['quantity'],
                 $itemTotal,
-                $tableNumber
+                $tableNumber,
+                $order_status
             ]);
             
             // Update stok produk
