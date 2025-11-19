@@ -2,7 +2,7 @@
 // process_order.php
 session_start();
 
-// NOTE: Transfer payment method removed. Backend now validates and accepts only allowed payment methods (cash, qris).
+// NOTE: Transfer payment method removed. Backend now saves orders as 'pending' by default.
 // Koneksi database
 $configs = [
     ['localhost', 'umkmk16', 'root', '']
@@ -38,15 +38,16 @@ if (isset($_POST['action']) && $_POST['action'] == 'process_order') {
         $orderId = $_POST['order_id'] ?? '';
         $cartItems = json_decode($_POST['cart_items'] ?? '[]', true);
         
-        // Normalisasi dan validasi metode pembayaran: hanya 'cash' dan 'qris' diperbolehkan.
+        // Normalisasi metode pembayaran: terima 'cash' dan 'qris' (jika ada)
         $paymentMethod = strtolower(trim($paymentMethod));
         if ($paymentMethod !== 'cash' && $paymentMethod !== 'qris') {
             // Default ke cash jika ada nilai tidak dikenal
             $paymentMethod = 'cash';
         }
         $paymentMethodDb = $paymentMethod === 'cash' ? 'Cash' : 'QRIS';
-        // Untuk pembayaran tunai, kita bisa set status completed langsung; untuk lainnya pending.
-        $order_status = $paymentMethod === 'cash' ? 'completed' : 'pending';
+        
+        // IMPORTANT: Semua order disimpan sebagai 'pending' terlebih dahulu.
+        $order_status = 'pending';
         
         // Validasi data
         if (empty($customerName) || empty($tableNumber) || empty($cartItems)) {
