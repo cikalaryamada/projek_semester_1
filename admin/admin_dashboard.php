@@ -12,6 +12,8 @@ if (time() - $_SESSION['login_time'] > 28800) {
     exit;
 }
 
+// NOTE: Transfer payment method handling removed from admin UI and queries.
+
 // Konfigurasi database
 $configs = [
     ['localhost', 'umkmk16', 'root', ''],
@@ -371,9 +373,6 @@ $all_transactions = $pdo->query("
     ORDER BY t.Tanggal_Transaksi DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
-// Ambil semua pelanggan
-$customers = $pdo->query("SELECT * FROM pelanggan ORDER BY ID_Pelanggan")->fetchAll(PDO::FETCH_ASSOC);
-
 // ===== REVIEWS MANAGEMENT DATA =====
 // Ambil data statistik ulasan
 $review_stats = $pdo->query("
@@ -437,8 +436,7 @@ $orders_query = "
         tp.order_status,
         pen.Nama_Karyawan as seller_name,
         tp.Tanggal_Transaksi as order_date,
-        GROUP_CONCAT(DISTINCT pr.Nama_Produk SEPARATOR ', ') as items,
-        tp.transfer_proof
+        GROUP_CONCAT(DISTINCT pr.Nama_Produk SEPARATOR ', ') as items
     FROM transaksi_penjualan tp
     LEFT JOIN pelanggan p ON tp.ID_Pelanggan = p.ID_Pelanggan
     LEFT JOIN penjual pen ON tp.ID_Penjual = pen.ID_Penjual
@@ -1022,7 +1020,6 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
 
     .payment-cash { background: var(--success); color: white; }
     .payment-qris { background: var(--info); color: white; }
-    .payment-transfer { background: var(--warning); color: white; }
 
     /* Review Management Styles */
     .status-filter-btn {
@@ -1752,8 +1749,7 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
                             <td>Rp <?php echo number_format($order['total_amount'], 0, ',', '.'); ?></td>
                             <td>
                                 <span class="badge <?php 
-                                    echo $order['payment_method'] === 'Cash' ? 'success' : 
-                                         ($order['payment_method'] === 'Transfer' ? 'warning' : 'info'); 
+                                    echo $order['payment_method'] === 'Cash' ? 'success' : 'info'; 
                                 ?>">
                                     <?php echo $order['payment_method']; ?>
                                 </span>
@@ -2876,23 +2872,8 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
             .then(data => {
                 if (data.success) {
                     const orderDetails = document.getElementById('orderDetailsBody');
-                    let transferProofHtml = '';
-                    
-                    if (data.order.transfer_proof) {
-                        transferProofHtml = `
-                            <div>
-                                <strong>Bukti Transfer:</strong>
-                                <div style="margin-top: 0.5rem;">
-                                    <img src="assets/images/transfer_proofs/${data.order.transfer_proof}" 
-                                         alt="Bukti Transfer" 
-                                         class="transfer-proof"
-                                         onclick="this.classList.toggle('transfer-proof-large')"
-                                         style="cursor: pointer;">
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
+
+                    // Note: transfer proof removed from admin view
                     orderDetails.innerHTML = `
                         <div class="order-detail">
                             <div class="form-row">
@@ -2920,7 +2901,7 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
                             <div class="form-row">
                                 <div class="form-group">
                                     <strong>Metode Pembayaran:</strong>
-                                    <p><span class="badge ${data.order.payment_method === 'Cash' ? 'success' : 'warning'}">${data.order.payment_method}</span></p>
+                                    <p><span class="badge ${data.order.payment_method === 'Cash' ? 'success' : 'info'}">${data.order.payment_method}</span></p>
                                 </div>
                                 <div class="form-group">
                                     <strong>Status:</strong>
@@ -2946,8 +2927,6 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
                                     Rp ${data.order.total_amount.toLocaleString('id-ID')}
                                 </p>
                             </div>
-                            
-                            ${transferProofHtml}
                         </div>
                     `;
                 } else {
