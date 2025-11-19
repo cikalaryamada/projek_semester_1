@@ -227,7 +227,7 @@ $snack = $pdo->query("
       margin-top: 2rem;
       padding-top: 1rem;
       border-top: 2px dashed #333;
-      font-size: 0.8rem;
+      font-size: 0.9rem;
       color: #666;
     }
 
@@ -993,7 +993,10 @@ $snack = $pdo->query("
       const receiptContent = document.getElementById('receipt-content');
       
       const paymentLabel = orderData.payment_method === 'cash' ? 'Tunai' : (orderData.payment_method === 'qris' ? 'QRIS' : 'Lainnya');
-      const statusText = orderData.status === 'completed' ? 'LUNAS' : 'MENUNGGU VERIFIKASI';
+      const statusText = orderData.status === 'completed' ? 'LUNAS' : 'PESANAN ANDA BERHASIL DITERIMA, PESANAN AKAN DIANTARKAN / DISAJIKAN DALAM BEBERAPA SAAT.';
+
+      /* Perubahan: pada struk ditambahkan penjelasan bahwa pesanan telah diterima dan akan diantarkan/disajikan.
+         Jika Anda ingin menampilkan pesan lain untuk status pending/completed, ubah variable statusText di atas. */
       
       const receiptHTML = `
         <div class="receipt">
@@ -1028,8 +1031,8 @@ $snack = $pdo->query("
             </div>
             
             <div class="receipt-footer">
-                <p>Terima kasih atas kunjungan Anda</p>
-                <p>*** ${statusText} ***</p>
+                <p><strong>${statusText}</strong></p>
+                <p>Tim K SIXTEEN CAFE akan memproses pesanan Anda. Terima kasih telah memesan!</p>
                 <span class="receipt-status ${getStatusClass(orderData.status)}">${orderData.status.toUpperCase()}</span>
             </div>
         </div>
