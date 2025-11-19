@@ -1,169 +1,133 @@
 <?php
-// Ulasan.php - VERSI LENGKAP DENGAN UPLOAD FOTO (SUDAH DIPERBAIKI)
+// Ulasan.php - Halaman tampil + form ulasan (disesuaikan dengan assets/css/style.css)
 session_start();
 
-// Koneksi database
+// CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// DB configs (sesuaikan jika perlu)
 $configs = [
     ['localhost', 'umkmk16', 'root', '']
 ];
 
 $pdo = null;
-$stats = [
-    'total_reviews' => 0,
-    'average_rating' => 0,
-    'rating_5_percent' => 0,
-    'rating_4_percent' => 0,
-    'rating_3_percent' => 0,
-    'rating_2_percent' => 0,
-    'rating_1_percent' => 0
-];
-
-$reviews_from_db = [];
-
 foreach ($configs as $config) {
     list($host, $dbname, $username, $password) = $config;
     try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
         break;
-    } catch(PDOException $e) {
+    } catch (PDOException $e) {
         continue;
     }
 }
 
-// Jika koneksi berhasil, ambil data dari database
+// buat tabel jika belum ada
 if ($pdo) {
-    try {
-        // Cek apakah tabel ulasan exists, jika tidak buat dengan struktur baru
-        $tableExists = $pdo->query("SHOW TABLES LIKE 'ulasan'")->rowCount() > 0;
-        
-        if (!$tableExists) {
-            // Buat tabel ulasan jika belum ada dengan struktur baru
-            $pdo->exec("
-                CREATE TABLE ulasan (
-                    ID_Ulasan INT AUTO_INCREMENT PRIMARY KEY,
-                    Nama_Pelanggan VARCHAR(100) NOT NULL DEFAULT 'Pelanggan',
-                    Rating INT NOT NULL,
-                    Judul_Ulasan VARCHAR(200) NOT NULL,
-                    Isi_Ulasan TEXT NOT NULL,
-                    Rekomendasi ENUM('yes', 'no') NOT NULL DEFAULT 'yes',
-                    Foto_Ulasan VARCHAR(255) NULL,
-                    Tanggal_Ulasan DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    Status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved'
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            ");
-            
-            // Insert sample data
-            $sampleReviews = [
-                [5, 'Budi Santoso', 'Tempat nongkrong favorit!', 'K SIXTEEN CAFE benar-benar menjadi tempat favorit saya untuk nongkrong. Kopinya enak, makanannya lezat, dan suasana nyaman. Staffnya juga ramah-ramah. Sangat recommended!', 'yes', NULL],
-                [5, 'Sari Dewi', 'Pelayanan luar biasa', 'Saya sering datang ke sini untuk meeting atau sekedar mengerjakan tugas. WiFi-nya cepat, tempatnya nyaman, dan yang paling penting kopinya selalu konsisten enaknya.', 'yes', NULL],
-                [4, 'Ahmad Rizki', 'Kopi dan makanan enak', 'Kopi susu di sini memang juara. Rasa kopinya kuat tapi tidak pahit. Makanannya juga enak, terutama ayam penyetnya.', 'yes', NULL],
-                [5, 'Diana Putri', 'Buka 24 jam, sangat membantu', 'Sebagai mahasiswa yang sering begadang, keberadaan K SIXTEEN yang buka 24 jam sangat membantu. Bisa nugas sampai pagi dengan ditemani kopi dan snack yang enak.', 'yes', NULL]
-            ];
-            
-            $stmt = $pdo->prepare("INSERT INTO ulasan (Rating, Nama_Pelanggan, Judul_Ulasan, Isi_Ulasan, Rekomendasi, Foto_Ulasan) VALUES (?, ?, ?, ?, ?, ?)");
-            foreach ($sampleReviews as $review) {
-                $stmt->execute($review);
-            }
-        } else {
-            // Cek jika kolom Foto_Ulasan belum ada
-            $columnCheck = $pdo->query("SHOW COLUMNS FROM ulasan LIKE 'Foto_Ulasan'")->fetch();
-            if (!$columnCheck) {
-                $pdo->exec("ALTER TABLE ulasan ADD COLUMN Foto_Ulasan VARCHAR(255) NULL AFTER Rekomendasi");
-            }
-        }
-        
-        // Ambil statistik ulasan
-        $stmt = $pdo->query("
-            SELECT 
-                COUNT(*) as total_reviews,
-                AVG(Rating) as average_rating,
-                COUNT(CASE WHEN Rating = 5 THEN 1 END) as rating_5,
-                COUNT(CASE WHEN Rating = 4 THEN 1 END) as rating_4,
-                COUNT(CASE WHEN Rating = 3 THEN 1 END) as rating_3,
-                COUNT(CASE WHEN Rating = 2 THEN 1 END) as rating_2,
-                COUNT(CASE WHEN Rating = 1 THEN 1 END) as rating_1
-            FROM ulasan 
-            WHERE Status = 'approved'
+    $stmt = $pdo->query("SHOW TABLES LIKE 'ulasan'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("
+            CREATE TABLE ulasan (
+                ID_Ulasan INT AUTO_INCREMENT PRIMARY KEY,
+                Nama_Pelanggan VARCHAR(100) NOT NULL DEFAULT 'Pelanggan',
+                Rating TINYINT NOT NULL,
+                Judul_Ulasan VARCHAR(200) NOT NULL,
+                Isi_Ulasan TEXT NOT NULL,
+                Rekomendasi ENUM('yes','no') NOT NULL DEFAULT 'yes',
+                Foto_Ulasan VARCHAR(255) NULL,
+                Tanggal_Ulasan DATETIME DEFAULT CURRENT_TIMESTAMP,
+                Status ENUM('pending','approved','rejected') DEFAULT 'pending'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
-        
-        $dbStats = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($dbStats && $dbStats['total_reviews'] > 0) {
-            $stats = [
-                'total_reviews' => $dbStats['total_reviews'],
-                'average_rating' => round($dbStats['average_rating'], 1),
-                'rating_5_percent' => round(($dbStats['rating_5'] / $dbStats['total_reviews']) * 100),
-                'rating_4_percent' => round(($dbStats['rating_4'] / $dbStats['total_reviews']) * 100),
-                'rating_3_percent' => round(($dbStats['rating_3'] / $dbStats['total_reviews']) * 100),
-                'rating_2_percent' => round(($dbStats['rating_2'] / $dbStats['total_reviews']) * 100),
-                'rating_1_percent' => round(($dbStats['rating_1'] / $dbStats['total_reviews']) * 100)
-            ];
+    } else {
+        $c = $pdo->query("SHOW COLUMNS FROM ulasan LIKE 'Foto_Ulasan'")->fetch();
+        if (!$c) {
+            $pdo->exec("ALTER TABLE ulasan ADD COLUMN Foto_Ulasan VARCHAR(255) NULL AFTER Rekomendasi");
         }
-        
-        // Ambil ulasan untuk ditampilkan di PHP (fallback)
-        $stmt = $pdo->query("
-            SELECT * FROM ulasan 
-            WHERE Status = 'approved' 
-            ORDER BY Tanggal_Ulasan DESC 
-            LIMIT 12
-        ");
-        $reviews_from_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } catch (Exception $e) {
-        // Tetap lanjut dengan default values
-        error_log("Error loading review data: " . $e->getMessage());
     }
 }
 
-// Fungsi untuk format tanggal
+// helper waktu
 function time_elapsed_string($datetime, $full = false) {
     if (empty($datetime)) return 'baru saja';
-    
     try {
         $now = new DateTime;
         $ago = new DateTime($datetime);
         $diff = $now->diff($ago);
 
-        // Hitung minggu dan sisa hari tanpa menulis properti dinamis pada DateInterval
         $weeks = floor($diff->d / 7);
         $days = $diff->d - ($weeks * 7);
 
-        $units = array(
-            'y' => 'tahun',
-            'm' => 'bulan', 
-            'w' => 'minggu',
-            'd' => 'hari',
-            'h' => 'jam',
-            'i' => 'menit',
-            's' => 'detik',
-        );
+        $units = ['y'=>'tahun','m'=>'bulan','w'=>'minggu','d'=>'hari','h'=>'jam','i'=>'menit','s'=>'detik'];
+        $diffValues = ['y'=>$diff->y,'m'=>$diff->m,'w'=>$weeks,'d'=>$days,'h'=>$diff->h,'i'=>$diff->i,'s'=>$diff->s];
 
-        $diffValues = array(
-            'y' => $diff->y,
-            'm' => $diff->m,
-            'w' => $weeks,
-            'd' => $days,
-            'h' => $diff->h,
-            'i' => $diff->i,
-            's' => $diff->s,
-        );
-        
-        $string = array();
+        $string = [];
         foreach ($units as $k => $name) {
             if (!empty($diffValues[$k])) {
-                $string[$k] = $diffValues[$k] . ' ' . $name;
+                $string[] = $diffValues[$k] . ' ' . $name;
             }
         }
-
         if (!$full) $string = array_slice($string, 0, 1);
         return $string ? implode(', ', $string) . ' yang lalu' : 'baru saja';
     } catch (Exception $e) {
         return 'baru saja';
     }
 }
-?>
 
+// ambil statistik dan ulasan approved
+$stats = [
+    'total_reviews'=>0,
+    'average_rating'=>0,
+    'rating_5_percent'=>0,'rating_4_percent'=>0,'rating_3_percent'=>0,'rating_2_percent'=>0,'rating_1_percent'=>0
+];
+$reviews_from_db = [];
+
+if ($pdo) {
+    try {
+        $s = $pdo->query("
+            SELECT 
+                COUNT(*) as total_reviews,
+                AVG(Rating) as average_rating,
+                SUM(Rating = 5) as rating_5,
+                SUM(Rating = 4) as rating_4,
+                SUM(Rating = 3) as rating_3,
+                SUM(Rating = 2) as rating_2,
+                SUM(Rating = 1) as rating_1
+            FROM ulasan
+            WHERE Status = 'approved'
+        ")->fetch(PDO::FETCH_ASSOC);
+
+        if ($s && $s['total_reviews'] > 0) {
+            $stats['total_reviews'] = (int)$s['total_reviews'];
+            $stats['average_rating'] = round((float)$s['average_rating'], 1);
+            $stats['rating_5_percent'] = round(($s['rating_5'] / $s['total_reviews']) * 100);
+            $stats['rating_4_percent'] = round(($s['rating_4'] / $s['total_reviews']) * 100);
+            $stats['rating_3_percent'] = round(($s['rating_3'] / $s['total_reviews']) * 100);
+            $stats['rating_2_percent'] = round(($s['rating_2'] / $s['total_reviews']) * 100);
+            $stats['rating_1_percent'] = round(($s['rating_1'] / $s['total_reviews']) * 100);
+        }
+
+        $q = $pdo->prepare("SELECT * FROM ulasan WHERE Status = 'approved' ORDER BY Tanggal_Ulasan DESC LIMIT 12");
+        $q->execute();
+        $reviews_from_db = $q->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        // ignore
+    }
+}
+
+// ambil form data yang disimpan session jika ada (prefill saat error)
+$form_data = $_SESSION['form_data'] ?? [];
+unset($_SESSION['form_data']);
+
+// pesan hasil submit
+$flash = $_SESSION['review_message'] ?? null;
+$flash_success = $_SESSION['review_success'] ?? false;
+unset($_SESSION['review_message'], $_SESSION['review_success']);
+
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -172,800 +136,15 @@ function time_elapsed_string($datetime, $full = false) {
   <title>Ulasan | K SIXTEEN CAFE</title>
   <link href="assets/css/style.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <style>
-    /* VARIABLES */
-    :root {
-      --cafe-main: #FFD600;
-      --cafe-dark: #111111;
-      --cafe-bg: #1a1a1a;
-      --cafe-card: #2d2d2d;
-      --cafe-text: #ffffff;
-      --cafe-text-light: #b0b0b0;
-      --cafe-shadow: 0 4px 20px rgba(255, 214, 0, 0.15);
-      --cafe-border: rgba(255, 214, 0, 0.2);
-    }
-
-    /* RESET & BASE STYLES */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--cafe-bg);
-      color: var(--cafe-text);
-      line-height: 1.6;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }
-
-    /* NAVIGATION STYLES */
-    .navbar {
-      background: rgba(17, 17, 17, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 1rem 0;
-      position: fixed;
-      top: 0;
-      width: 100%;
-      z-index: 1000;
-      border-bottom: 2px solid var(--cafe-main);
-      box-shadow: var(--cafe-shadow);
-    }
-
-    .nav-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }
-
-    .logo-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-image {
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      overflow: hidden;
-      border: 2px solid var(--cafe-main);
-      background: var(--cafe-main);
-    }
-
-    .logo-image img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .logo-text {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: var(--cafe-main);
-      text-shadow: 0 2px 10px rgba(255, 214, 0, 0.3);
-    }
-
-    .nav-menu {
-      display: flex;
-      list-style: none;
-      gap: 1.5rem;
-      align-items: center;
-    }
-
-    .nav-link {
-      color: var(--cafe-text);
-      text-decoration: none;
-      font-weight: 600;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      transition: all 0.3s ease;
-      font-size: 0.95rem;
-    }
-
-    .nav-link:hover {
-      color: var(--cafe-main);
-      background: rgba(255, 214, 0, 0.1);
-    }
-
-    .nav-link.active {
-      color: var(--cafe-dark);
-      background: var(--cafe-main);
-      box-shadow: 0 2px 10px rgba(255, 214, 0, 0.4);
-    }
-
-    /* Reviews Hero Section */
-    .reviews-hero {
-      background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
-                  url('assets/images/tempat/suasana.jpg') center/cover;
-      min-height: 40vh;
-      display: flex;
-      align-items: center;
-      margin-top: 80px;
-      border-radius: 0 0 20px 20px;
-    }
-
-    .reviews-hero-content {
-      text-align: center;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-
-    .reviews-hero h1 {
-      font-size: 3rem;
-      color: var(--cafe-main);
-      margin-bottom: 1rem;
-    }
-
-    .reviews-hero p {
-      font-size: 1.2rem;
-      color: var(--cafe-text-light);
-    }
-
-    .rating-section,
-    .add-review-section,
-    .reviews-list-section {
-      padding: 5rem 0;
-    }
-
-    .rating-section {
-      background: var(--cafe-bg);
-    }
-
-    .add-review-section {
-      background: var(--cafe-dark);
-    }
-
-    .reviews-list-section {
-      background: var(--cafe-bg);
-    }
-
-    .section-title {
-      text-align: center;
-      font-size: 2.5rem;
-      color: var(--cafe-main);
-      margin-bottom: 1rem;
-    }
-
-    .section-subtitle {
-      text-align: center;
-      color: var(--cafe-text-light);
-      font-size: 1.1rem;
-      margin-bottom: 3rem;
-    }
-
-    .rating-summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 3rem;
-      align-items: center;
-    }
-
-    .rating-overview {
-      text-align: center;
-    }
-
-    .rating-score {
-      margin-bottom: 2rem;
-    }
-
-    .score-number {
-      font-size: 4rem;
-      font-weight: 800;
-      color: var(--cafe-main);
-      line-height: 1;
-    }
-
-    .score-stars {
-      font-size: 1.5rem;
-      color: var(--cafe-main);
-      margin: 0.5rem 0;
-    }
-
-    .score-count {
-      color: var(--cafe-text-light);
-    }
-
-    .rating-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 0.5rem;
-      gap: 1rem;
-    }
-
-    .rating-bar {
-      flex: 1;
-      height: 8px;
-      background: var(--cafe-card);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .rating-fill {
-      height: 100%;
-      background: var(--cafe-main);
-      border-radius: 4px;
-    }
-
-    .rating-features {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .feature-rating {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .feature-name {
-      flex: 1;
-      color: var(--cafe-text);
-    }
-
-    .feature-stars {
-      color: var(--cafe-main);
-    }
-
-    .feature-score {
-      font-weight: 700;
-      color: var(--cafe-main);
-      min-width: 40px;
-      text-align: right;
-    }
-
-    .form-container {
-      max-width: 700px;
-      margin: 0 auto;
-    }
-
-    .review-form {
-      background: var(--cafe-card);
-      padding: 2.5rem;
-      border-radius: 15px;
-      border: 1px solid var(--cafe-border);
-    }
-
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: var(--cafe-main);
-      font-weight: 600;
-    }
-
-    .form-group input,
-    .form-group textarea {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid var(--cafe-border);
-      border-radius: 8px;
-      color: var(--cafe-text);
-      font-size: 1rem;
-      transition: all 0.3s ease;
-    }
-
-    .form-group input:focus,
-    .form-group textarea:focus {
-      outline: none;
-      border-color: var(--cafe-main);
-      box-shadow: 0 0 0 3px rgba(255, 214, 0, 0.1);
-    }
-
-    .form-group textarea {
-      resize: vertical;
-      min-height: 120px;
-    }
-
-    .star-rating {
-      display: flex;
-      flex-direction: row-reverse;
-      justify-content: flex-end;
-      gap: 0.2rem;
-    }
-
-    .star-rating input {
-      display: none;
-    }
-
-    .star-rating label {
-      cursor: pointer;
-      font-size: 1.5rem;
-      color: #ddd;
-      transition: color 0.2s ease;
-    }
-
-    .star-rating input:checked ~ label,
-    .star-rating label:hover,
-    .star-rating label:hover ~ label {
-      color: var(--cafe-main);
-    }
-
-    .recommendation-options {
-      display: flex;
-      gap: 1rem;
-    }
-
-    .radio-option {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-    }
-
-    .radio-label {
-      color: var(--cafe-text);
-    }
-
-    .submit-btn {
-      background: var(--cafe-main);
-      color: var(--cafe-dark);
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 50px;
-      font-weight: 700;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      width: 100%;
-    }
-
-    .submit-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(255, 214, 0, 0.4);
-    }
-
-    /* File Upload Styles */
-    .file-upload-area {
-      border: 2px dashed var(--cafe-border);
-      border-radius: 8px;
-      padding: 2rem;
-      text-align: center;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .file-upload-area:hover {
-      border-color: var(--cafe-main);
-      background: rgba(255, 214, 0, 0.05);
-    }
-
-    .file-upload-area i {
-      font-size: 2rem;
-      color: var(--cafe-main);
-      margin-bottom: 1rem;
-    }
-
-    .file-upload-area p {
-      color: var(--cafe-text);
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
-
-    .file-upload-area span {
-      color: var(--cafe-text-light);
-      font-size: 0.9rem;
-    }
-
-    .file-upload-area input {
-      display: none;
-    }
-
-    .photo-preview {
-      margin-top: 1rem;
-      text-align: center;
-    }
-
-    .photo-preview img {
-      max-width: 200px;
-      max-height: 150px;
-      border-radius: 8px;
-      border: 2px solid var(--cafe-border);
-    }
-
-    .review-photo {
-      max-width: 100%;
-      max-height: 300px;
-      border-radius: 8px;
-      margin: 1rem 0;
-      border: 2px solid var(--cafe-border);
-      object-fit: cover;
-    }
-
-    .review-photo-container {
-      text-align: center;
-      margin: 1rem 0;
-    }
-
-    .reviews-filter {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .filter-btn {
-      background: var(--cafe-card);
-      color: var(--cafe-text);
-      border: 1px solid var(--cafe-border);
-      padding: 0.75rem 1.5rem;
-      border-radius: 50px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .filter-btn.active,
-    .filter-btn:hover {
-      background: var(--cafe-main);
-      color: var(--cafe-dark);
-    }
-
-    .reviews-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 2rem;
-      margin-bottom: 3rem;
-    }
-
-    .review-card {
-      background: var(--cafe-card);
-      border-radius: 15px;
-      padding: 2rem;
-      border: 1px solid var(--cafe-border);
-      transition: all 0.3s ease;
-    }
-
-    .review-card:hover {
-      transform: translateY(-5px);
-      box-shadow: var(--cafe-shadow);
-    }
-
-    .review-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 1.5rem;
-    }
-
-    .reviewer-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .reviewer-avatar {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--cafe-main);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--cafe-dark);
-      font-size: 1.2rem;
-    }
-
-    .reviewer-name {
-      color: var(--cafe-text);
-      margin-bottom: 0.25rem;
-    }
-
-    .review-date {
-      color: var(--cafe-text-light);
-      font-size: 0.9rem;
-    }
-
-    .review-rating {
-      color: var(--cafe-main);
-    }
-
-    .review-content {
-      margin-bottom: 1.5rem;
-    }
-
-    .review-title {
-      color: var(--cafe-main);
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-    }
-
-    .review-text {
-      color: var(--cafe-text-light);
-      line-height: 1.6;
-    }
-
-    .review-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 1rem;
-      border-top: 1px solid var(--cafe-border);
-    }
-
-    .recommendation {
-      color: var(--cafe-text-light);
-      font-size: 0.9rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .recommendation i {
-      color: var(--cafe-main);
-    }
-
-    .load-more-container {
-      text-align: center;
-    }
-
-    .load-more-btn {
-      background: var(--cafe-main);
-      color: var(--cafe-dark);
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 50px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .load-more-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(255, 214, 0, 0.4);
-    }
-
-    .no-reviews {
-      text-align: center;
-      padding: 3rem;
-      grid-column: 1 / -1;
-    }
-
-    .no-reviews i {
-      font-size: 4rem;
-      color: var(--cafe-text-light);
-      margin-bottom: 1rem;
-    }
-
-    .no-reviews h3 {
-      color: var(--cafe-text);
-      margin-bottom: 1rem;
-    }
-
-    .no-reviews p {
-      color: var(--cafe-text-light);
-    }
-
-    /* Modal styles */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-
-    .modal.show {
-      display: flex;
-    }
-
-    .modal-content {
-      background: var(--cafe-card);
-      border-radius: 15px;
-      width: 100%;
-      max-width: 500px;
-      border: 2px solid var(--cafe-main);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.5rem;
-      border-bottom: 1px solid var(--cafe-border);
-    }
-
-    .modal-header h3 {
-      color: var(--cafe-main);
-      font-size: 1.3rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .modal-close {
-      background: none;
-      border: none;
-      color: var(--cafe-text);
-      font-size: 1.5rem;
-      cursor: pointer;
-      transition: color 0.3s ease;
-    }
-
-    .modal-close:hover {
-      color: var(--cafe-main);
-    }
-
-    .modal-body {
-      padding: 1.5rem;
-    }
-
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      padding: 1.5rem;
-      border-top: 1px solid var(--cafe-border);
-    }
-
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border-radius: 50px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: none;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .btn-primary {
-      background: var(--cafe-main);
-      color: var(--cafe-dark);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(255, 214, 0, 0.4);
-    }
-
-    /* Footer */
-    .footer {
-      background: var(--cafe-dark);
-      padding: 3rem 0;
-      text-align: center;
-      border-top: 2px solid var(--cafe-main);
-    }
-
-    .footer-content p {
-      margin-bottom: 1rem;
-      color: var(--cafe-text-light);
-    }
-
-    .social-links {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-
-    .social-link {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--cafe-card);
-      color: var(--cafe-text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      transition: all 0.3s ease;
-    }
-
-    .social-link:hover {
-      background: var(--cafe-main);
-      color: var(--cafe-dark);
-      transform: translateY(-2px);
-    }
-
-    /* Message styles */
-    .alert {
-      padding: 1rem 1.5rem;
-      border-radius: 10px;
-      margin-bottom: 2rem;
-      border: 1px solid;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .alert-success {
-      background: rgba(46, 213, 115, 0.1);
-      color: #2ed573;
-      border-color: rgba(46, 213, 115, 0.3);
-    }
-
-    .alert-error {
-      background: rgba(255, 71, 87, 0.1);
-      color: #ff4757;
-      border-color: rgba(255, 71, 87, 0.3);
-    }
-
-    /* Responsive design */
-    @media (max-width: 768px) {
-      .rating-summary {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-      }
-      
-      .reviews-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .review-header {
-        flex-direction: column;
-        gap: 1rem;
-      }
-      
-      .recommendation-options {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .review-footer {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: flex-start;
-      }
-      
-      .reviews-filter {
-        justify-content: flex-start;
-      }
-      
-      .nav-container {
-        flex-direction: column;
-        gap: 1rem;
-      }
-      
-      .nav-menu {
-        gap: 1rem;
-      }
-      
-      .section-title {
-        font-size: 2rem;
-      }
-    }
-  </style>
 </head>
 <body>
-  <!-- Navigation -->
+  <!-- NAV -->
   <nav class="navbar">
-    <div class="nav-container">
+    <div class="nav-container container">
       <div class="logo-wrapper">
-        <div class="logo-image">
-          <img src="assets/images/logo.jpg" alt="K SIXTEEN CAFE">
-        </div>
+        <div class="logo-image"><img src="assets/images/logo.jpg" alt="K SIXTEEN"></div>
         <div class="logo-text">K SIXTEEN CAFE</div>
       </div>
-      
       <ul class="nav-menu">
         <li><a href="index.php" class="nav-link">Home</a></li>
         <li><a href="menu.php" class="nav-link">Menu</a></li>
@@ -976,179 +155,93 @@ function time_elapsed_string($datetime, $full = false) {
     </div>
   </nav>
 
-  <!-- Reviews Hero Section -->
+  <!-- HERO -->
   <section class="reviews-hero">
-    <div class="container">
-      <div class="reviews-hero-content">
-        <h1>Ulasan Pelanggan</h1>
-        <p>Bagikan pengalaman Anda di K SIXTEEN CAFE dan lihat apa kata pelanggan lain tentang kami</p>
-      </div>
+    <div class="container reviews-hero-content">
+      <h1>Ulasan Pelanggan</h1>
+      <p>Bagikan pengalaman Anda di K SIXTEEN CAFE dan lihat apa kata pelanggan lain</p>
     </div>
   </section>
 
-  <!-- Overall Rating Section -->
+  <!-- RATING SUMMARY -->
   <section class="rating-section">
     <div class="container">
       <div class="rating-summary">
         <div class="rating-overview">
           <div class="rating-score">
-            <div class="score-number"><?php echo $stats['average_rating']; ?></div>
-            <div class="score-stars">
+            <div class="score-number"><?php echo htmlspecialchars($stats['average_rating']); ?></div>
+            <div class="score-stars" aria-hidden="true">
               <?php
               $fullStars = floor($stats['average_rating']);
               $hasHalfStar = ($stats['average_rating'] - $fullStars) >= 0.5;
-              
               for ($i = 1; $i <= 5; $i++) {
-                  if ($i <= $fullStars) {
-                      echo '<i class="fas fa-star"></i>';
-                  } else if ($i == $fullStars + 1 && $hasHalfStar) {
-                      echo '<i class="fas fa-star-half-alt"></i>';
-                  } else {
-                      echo '<i class="far fa-star"></i>';
-                  }
+                  if ($i <= $fullStars) echo '<i class="fas fa-star"></i>';
+                  else if ($i == $fullStars + 1 && $hasHalfStar) echo '<i class="fas fa-star-half-stroke"></i>';
+                  else echo '<i class="far fa-star"></i>';
               }
               ?>
             </div>
-            <div class="score-count">Berdasarkan <?php echo $stats['total_reviews']; ?> ulasan</div>
+            <div class="score-count">Berdasarkan <?php echo (int)$stats['total_reviews']; ?> ulasan</div>
           </div>
-          
+
           <div class="rating-breakdown">
-            <div class="rating-item">
-              <span>5 Bintang</span>
-              <div class="rating-bar">
-                <div class="rating-fill" style="width: <?php echo $stats['rating_5_percent']; ?>%"></div>
-              </div>
-              <span><?php echo $stats['rating_5_percent']; ?>%</span>
-            </div>
-            <div class="rating-item">
-              <span>4 Bintang</span>
-              <div class="rating-bar">
-                <div class="rating-fill" style="width: <?php echo $stats['rating_4_percent']; ?>%"></div>
-              </div>
-              <span><?php echo $stats['rating_4_percent']; ?>%</span>
-            </div>
-            <div class="rating-item">
-              <span>3 Bintang</span>
-              <div class="rating-bar">
-                <div class="rating-fill" style="width: <?php echo $stats['rating_3_percent']; ?>%"></div>
-              </div>
-              <span><?php echo $stats['rating_3_percent']; ?>%</span>
-            </div>
-            <div class="rating-item">
-              <span>2 Bintang</span>
-              <div class="rating-bar">
-                <div class="rating-fill" style="width: <?php echo $stats['rating_2_percent']; ?>%"></div>
-              </div>
-              <span><?php echo $stats['rating_2_percent']; ?>%</span>
-            </div>
-            <div class="rating-item">
-              <span>1 Bintang</span>
-              <div class="rating-bar">
-                <div class="rating-fill" style="width: <?php echo $stats['rating_1_percent']; ?>%"></div>
-              </div>
-              <span><?php echo $stats['rating_1_percent']; ?>%</span>
-            </div>
+            <div class="rating-item"><span>5 Bintang</span><div class="rating-bar"><div class="rating-fill" style="width: <?php echo $stats['rating_5_percent']; ?>%"></div></div><span><?php echo $stats['rating_5_percent']; ?>%</span></div>
+            <div class="rating-item"><span>4 Bintang</span><div class="rating-bar"><div class="rating-fill" style="width: <?php echo $stats['rating_4_percent']; ?>%"></div></div><span><?php echo $stats['rating_4_percent']; ?>%</span></div>
+            <div class="rating-item"><span>3 Bintang</span><div class="rating-bar"><div class="rating-fill" style="width: <?php echo $stats['rating_3_percent']; ?>%"></div></div><span><?php echo $stats['rating_3_percent']; ?>%</span></div>
+            <div class="rating-item"><span>2 Bintang</span><div class="rating-bar"><div class="rating-fill" style="width: <?php echo $stats['rating_2_percent']; ?>%"></div></div><span><?php echo $stats['rating_2_percent']; ?>%</span></div>
+            <div class="rating-item"><span>1 Bintang</span><div class="rating-bar"><div class="rating-fill" style="width: <?php echo $stats['rating_1_percent']; ?>%"></div></div><span><?php echo $stats['rating_1_percent']; ?>%</span></div>
           </div>
         </div>
-        
+
         <div class="rating-features">
-          <div class="feature-rating">
-            <div class="feature-name">Kualitas Kopi</div>
-            <div class="feature-stars">
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-            </div>
-            <div class="feature-score">4.9</div>
-          </div>
-          <div class="feature-rating">
-            <div class="feature-name">Rasa Makanan</div>
-            <div class="feature-stars">
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star-half-alt"></i>
-            </div>
-            <div class="feature-score">4.7</div>
-          </div>
-          <div class="feature-rating">
-            <div class="feature-name">Pelayanan</div>
-            <div class="feature-stars">
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-            </div>
-            <div class="feature-score">4.9</div>
-          </div>
-          <div class="feature-rating">
-            <div class="feature-name">Suasana</div>
-            <div class="feature-stars">
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star-half-alt"></i>
-            </div>
-            <div class="feature-score">4.7</div>
-          </div>
+          <div class="feature-rating"><div class="feature-name">Kualitas Kopi</div><div class="feature-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div><div class="feature-score">4.9</div></div>
+          <div class="feature-rating"><div class="feature-name">Rasa Makanan</div><div class="feature-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-stroke"></i></div><div class="feature-score">4.7</div></div>
+          <div class="feature-rating"><div class="feature-name">Pelayanan</div><div class="feature-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div><div class="feature-score">4.9</div></div>
+          <div class="feature-rating"><div class="feature-name">Suasana</div><div class="feature-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-stroke"></i></div><div class="feature-score">4.7</div></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Add Review Section -->
+  <!-- FORM -->
   <section class="add-review-section">
     <div class="container">
       <div class="form-container">
         <h2 class="section-title">Bagikan Pengalaman Anda</h2>
         <p class="section-subtitle">Ceritakan pengalaman Anda di K SIXTEEN CAFE</p>
-        
-        <?php if (isset($_SESSION['review_message'])): ?>
-          <div class="alert <?php echo $_SESSION['review_success'] ? 'alert-success' : 'alert-error'; ?>">
-            <i class="fas <?php echo $_SESSION['review_success'] ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
-            <?php echo $_SESSION['review_message']; ?>
+
+        <?php if ($flash): ?>
+          <div class="alert <?php echo $flash_success ? 'alert-success' : 'alert-error'; ?>">
+            <i class="fas <?php echo $flash_success ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
+            <?php echo htmlspecialchars($flash); ?>
           </div>
-          <?php 
-          unset($_SESSION['review_message']); 
-          unset($_SESSION['review_success']);
-          ?>
         <?php endif; ?>
-        
-        <form class="review-form" action="process_ulasan.php" method="POST" enctype="multipart/form-data">
+
+        <form class="review-form" action="process_ulasan.php" method="POST" enctype="multipart/form-data" novalidate>
+          <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
           <div class="form-group">
             <label for="reviewer-name">Nama Anda *</label>
-            <input type="text" id="reviewer-name" name="reviewer_name" required placeholder="Masukkan nama Anda" value="<?php echo $_POST['reviewer_name'] ?? ''; ?>">
+            <input type="text" id="reviewer-name" name="reviewer_name" required placeholder="Masukkan nama Anda" value="<?php echo htmlspecialchars($form_data['reviewer_name'] ?? ''); ?>">
           </div>
-          
+
           <div class="form-group">
             <label>Rating Keseluruhan *</label>
-            <div class="star-rating">
-              <input type="radio" id="star5" name="rating" value="5" required <?php echo ($_POST['rating'] ?? '') == '5' ? 'checked' : ''; ?>>
-              <label for="star5"><i class="fas fa-star"></i></label>
-              <input type="radio" id="star4" name="rating" value="4" <?php echo ($_POST['rating'] ?? '') == '4' ? 'checked' : ''; ?>>
-              <label for="star4"><i class="fas fa-star"></i></label>
-              <input type="radio" id="star3" name="rating" value="3" <?php echo ($_POST['rating'] ?? '') == '3' ? 'checked' : ''; ?>>
-              <label for="star3"><i class="fas fa-star"></i></label>
-              <input type="radio" id="star2" name="rating" value="2" <?php echo ($_POST['rating'] ?? '') == '2' ? 'checked' : ''; ?>>
-              <label for="star2"><i class="fas fa-star"></i></label>
-              <input type="radio" id="star1" name="rating" value="1" <?php echo ($_POST['rating'] ?? '') == '1' ? 'checked' : ''; ?>>
-              <label for="star1"><i class="fas fa-star"></i></label>
+            <div class="star-rating" role="radiogroup" aria-label="Rating">
+              <?php for ($r=5;$r>=1;$r--): ?>
+                <input type="radio" id="star<?php echo $r; ?>" name="rating" value="<?php echo $r; ?>" <?php echo (string)($form_data['rating'] ?? '') === (string)$r ? 'checked' : ''; ?> required>
+                <label for="star<?php echo $r; ?>"><i class="fas fa-star"></i></label>
+              <?php endfor; ?>
             </div>
           </div>
-          
+
           <div class="form-group">
             <label for="review-title">Judul Ulasan *</label>
-            <input type="text" id="review-title" name="review_title" required placeholder="Contoh: Tempat nongkrong terbaik di Nganjuk" value="<?php echo $_POST['review_title'] ?? ''; ?>">
+            <input type="text" id="review-title" name="review_title" required placeholder="Judul singkat ulasan" value="<?php echo htmlspecialchars($form_data['review_title'] ?? ''); ?>">
           </div>
-          
+
           <div class="form-group">
             <label for="review-text">Ulasan Anda *</label>
-            <textarea id="review-text" name="review_text" rows="5" required placeholder="Ceritakan pengalaman Anda di K SIXTEEN CAFE..."><?php echo $_POST['review_text'] ?? ''; ?></textarea>
+            <textarea id="review-text" name="review_text" rows="5" required placeholder="Ceritakan pengalaman Anda..."><?php echo htmlspecialchars($form_data['review_text'] ?? ''); ?></textarea>
           </div>
 
           <div class="form-group">
@@ -1156,40 +249,32 @@ function time_elapsed_string($datetime, $full = false) {
             <div class="file-upload-area" id="photo-upload-area" onclick="document.getElementById('review-photo').click()">
               <i class="fas fa-cloud-upload-alt"></i>
               <p>Klik untuk upload foto</p>
-              <span>Format: JPG, PNG, GIF (Maks. 5MB)</span>
+              <span>Format: JPG, PNG, GIF, WEBP (Maks. 5MB)</span>
               <input type="file" id="review-photo" name="review_photo" accept="image/*" onchange="previewPhoto(this)">
             </div>
             <div id="photo-preview" class="photo-preview"></div>
           </div>
-          
+
           <div class="form-group">
             <label>Rekomendasikan ke teman?</label>
             <div class="recommendation-options">
-              <label class="radio-option">
-                <input type="radio" name="recommend" value="yes" <?php echo ($_POST['recommend'] ?? 'yes') == 'yes' ? 'checked' : ''; ?>>
-                <span class="radio-label">Ya, sangat merekomendasikan</span>
-              </label>
-              <label class="radio-option">
-                <input type="radio" name="recommend" value="no" <?php echo ($_POST['recommend'] ?? '') == 'no' ? 'checked' : ''; ?>>
-                <span class="radio-label">Tidak merekomendasikan</span>
-              </label>
+              <label class="radio-option"><input type="radio" name="recommend" value="yes" <?php echo (($form_data['recommend'] ?? 'yes') === 'yes') ? 'checked' : ''; ?>> <span class="radio-label">Ya</span></label>
+              <label class="radio-option"><input type="radio" name="recommend" value="no" <?php echo (($form_data['recommend'] ?? '') === 'no') ? 'checked' : ''; ?>> <span class="radio-label">Tidak</span></label>
             </div>
           </div>
-          
-          <button type="submit" class="submit-btn">
-            <i class="fas fa-paper-plane"></i> Kirim Ulasan
-          </button>
+
+          <button type="submit" class="submit-btn"><i class="fas fa-paper-plane"></i> Kirim Ulasan</button>
         </form>
       </div>
     </div>
   </section>
 
-  <!-- Reviews List Section -->
+  <!-- LIST ULASAN -->
   <section class="reviews-list-section">
     <div class="container">
       <h2 class="section-title">Ulasan Pelanggan</h2>
       <p class="section-subtitle">Apa kata pelanggan tentang pengalaman mereka di K SIXTEEN</p>
-      
+
       <div class="reviews-filter">
         <button class="filter-btn active" data-filter="all">Semua Ulasan</button>
         <button class="filter-btn" data-filter="5">5 Bintang</button>
@@ -1198,44 +283,35 @@ function time_elapsed_string($datetime, $full = false) {
         <button class="filter-btn" data-filter="2">2 Bintang</button>
         <button class="filter-btn" data-filter="1">1 Bintang</button>
       </div>
-      
+
       <div class="reviews-grid" id="reviewsGrid">
         <?php if (!empty($reviews_from_db)): ?>
           <?php foreach ($reviews_from_db as $review): ?>
-            <div class="review-card" data-rating="<?php echo $review['Rating']; ?>">
+            <div class="review-card" data-rating="<?php echo (int)$review['Rating']; ?>">
               <div class="review-header">
                 <div class="reviewer-info">
-                  <div class="reviewer-avatar">
-                    <i class="fas fa-user"></i>
-                  </div>
+                  <div class="reviewer-avatar"><i class="fas fa-user"></i></div>
                   <div class="reviewer-details">
                     <h4 class="reviewer-name"><?php echo htmlspecialchars($review['Nama_Pelanggan']); ?></h4>
                     <div class="review-date"><?php echo time_elapsed_string($review['Tanggal_Ulasan']); ?></div>
                   </div>
                 </div>
-                <div class="review-rating">
-                  <?php
-                  for ($i = 1; $i <= 5; $i++) {
-                      echo $i <= $review['Rating'] ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
-                  }
-                  ?>
+                <div class="review-rating" aria-hidden="true">
+                  <?php for ($i=1;$i<=5;$i++) echo $i <= $review['Rating'] ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>'; ?>
                 </div>
               </div>
-              
+
               <?php if (!empty($review['Foto_Ulasan'])): ?>
-              <div class="review-photo-container">
-                <img src="assets/images/reviews/<?php echo $review['Foto_Ulasan']; ?>" 
-                     alt="Foto Ulasan" 
-                     class="review-photo"
-                     onerror="this.style.display='none'">
-              </div>
+                <div class="review-photo-container">
+                  <img src="assets/images/reviews/<?php echo htmlspecialchars($review['Foto_Ulasan']); ?>" alt="Foto Ulasan" class="review-photo" onerror="this.style.display='none'">
+                </div>
               <?php endif; ?>
-              
+
               <div class="review-content">
                 <h3 class="review-title"><?php echo htmlspecialchars($review['Judul_Ulasan']); ?></h3>
                 <p class="review-text"><?php echo nl2br(htmlspecialchars($review['Isi_Ulasan'])); ?></p>
               </div>
-              
+
               <div class="review-footer">
                 <div class="recommendation">
                   <?php if ($review['Rekomendasi'] === 'yes'): ?>
@@ -1255,214 +331,65 @@ function time_elapsed_string($datetime, $full = false) {
           </div>
         <?php endif; ?>
       </div>
-      
-      <?php if (count($reviews_from_db) > 6): ?>
-        <div class="load-more-container">
-          <button class="load-more-btn" id="loadMoreBtn">
-            <i class="fas fa-redo"></i> Muat Lebih Banyak Ulasan
-          </button>
-        </div>
-      <?php endif; ?>
     </div>
   </section>
 
-  <!-- Footer -->
   <footer class="footer">
-    <div class="container">
-      <div class="footer-content">
-        <p>&copy; <?php echo date('Y'); ?> K SIXTEEN CAFE. All rights reserved.</p>
-        <p>Jl. Imam Bonjol No.36, Payaman, Kec. Nganjuk, Jawa Timur</p>
-        
-        <div class="social-links">
-          <a href="https://www.instagram.com/k16_playstation/" class="social-link" target="_blank">
-            <i class="fab fa-instagram"></i>
-          </a>
-          <a href="https://wa.me/6282132384305" class="social-link" target="_blank">
-            <i class="fab fa-whatsapp"></i>
-          </a>
-          <a href="https://www.tiktok.com/@k16playstation" class="social-link" target="_blank">
-            <i class="fab fa-tiktok"></i>
-          </a>
-        </div>
+    <div class="container footer-content">
+      <p>&copy; <?php echo date('Y'); ?> K SIXTEEN CAFE. All rights reserved.</p>
+      <p>Jl. Imam Bonjol No.36, Payaman, Kec. Nganjuk, Jawa Timur</p>
+      <div class="social-links">
+        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+        <a href="#" class="social-link"><i class="fab fa-whatsapp"></i></a>
+        <a href="#" class="social-link"><i class="fab fa-tiktok"></i></a>
       </div>
     </div>
   </footer>
 
-  <script>
-    // JavaScript untuk filter dan interaksi
-    document.addEventListener('DOMContentLoaded', function() {
-      const filterBtns = document.querySelectorAll('.filter-btn');
-      const reviewCards = document.querySelectorAll('.review-card');
-      const loadMoreBtn = document.getElementById('loadMoreBtn');
-      let visibleReviews = 6;
-      
-      // Filter functionality
-      filterBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-          const filter = this.getAttribute('data-filter');
-          
-          // Update active button
-          filterBtns.forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          
-          // Filter reviews
-          reviewCards.forEach(card => {
-            if (filter === 'all' || card.getAttribute('data-rating') === filter) {
-              card.style.display = 'block';
-            } else {
-              card.style.display = 'none';
-            }
-          });
-          
-          // Reset visible reviews count
-          visibleReviews = 6;
-          updateLoadMoreButton();
-        });
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // filter
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const reviewCards = document.querySelectorAll('.review-card');
+  filterBtns.forEach(btn => btn.addEventListener('click', function(){
+    filterBtns.forEach(b=>b.classList.remove('active')); this.classList.add('active');
+    const f = this.getAttribute('data-filter');
+    reviewCards.forEach(card => {
+      if (f === 'all' || card.getAttribute('data-rating') === f) card.style.display = 'block';
+      else card.style.display = 'none';
+    });
+  }));
+
+  // star visual fill (inputs in reverse order)
+  document.querySelectorAll('.star-rating').forEach(container=>{
+    const inputs = Array.from(container.querySelectorAll('input[type=radio]'));
+    const labels = Array.from(container.querySelectorAll('label'));
+    function updateVisual(rating) {
+      const vis = labels.slice().reverse();
+      vis.forEach((lab, idx) => {
+        if (idx < rating) lab.classList.add('filled'); else lab.classList.remove('filled');
       });
-      
-      // Load more functionality
-      if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', function() {
-          visibleReviews += 6;
-          const allReviews = document.querySelectorAll('.review-card[style="display: block"], .review-card:not([style])');
-          
-          allReviews.forEach((card, index) => {
-            if (index < visibleReviews) {
-              card.style.display = 'block';
-            }
-          });
-          
-          updateLoadMoreButton();
-        });
-        
-        function updateLoadMoreButton() {
-          const visibleCards = document.querySelectorAll('.review-card[style="display: block"], .review-card:not([style])');
-          const totalCards = document.querySelectorAll('.review-card');
-          
-          if (visibleReviews >= totalCards.length) {
-            loadMoreBtn.style.display = 'none';
-          } else {
-            loadMoreBtn.style.display = 'block';
-          }
-        }
-        
-        // Initial load more setup
-        updateLoadMoreButton();
-      }
-      
-      // ===== STAR RATING INTERACTION - DIPERBAIKI =====
-      const starRating = document.querySelector('.star-rating');
-      if (starRating) {
-          const radioInputs = starRating.querySelectorAll('input[type="radio"]');
-          const labels = starRating.querySelectorAll('label');
-          
-          function updateStars(rating) {
-              labels.forEach((label, index) => {
-                  const starValue = 5 - index;
-                  const icon = label.querySelector('i');
-                  
-                  if (starValue <= rating) {
-                      icon.className = 'fas fa-star';
-                  } else {
-                      icon.className = 'far fa-star';
-                  }
-              });
-          }
-          
-          const checkedInput = starRating.querySelector('input[type="radio"]:checked');
-          if (checkedInput) {
-              updateStars(parseInt(checkedInput.value));
-          }
-          
-          radioInputs.forEach(input => {
-              input.addEventListener('change', function() {
-                  updateStars(parseInt(this.value));
-              });
-          });
-          
-          labels.forEach((label, index) => {
-              label.addEventListener('mouseenter', function() {
-                  const starValue = 5 - index;
-                  labels.forEach((l, i) => {
-                      const lValue = 5 - i;
-                      const icon = l.querySelector('i');
-                      if (lValue <= starValue) {
-                          icon.className = 'fas fa-star';
-                      } else {
-                          icon.className = 'far fa-star';
-                      }
-                  });
-              });
-          });
-          
-          starRating.addEventListener('mouseleave', function() {
-              const checkedInput = starRating.querySelector('input[type="radio"]:checked');
-              if (checkedInput) {
-                  updateStars(parseInt(checkedInput.value));
-              } else {
-                  labels.forEach(label => {
-                      label.querySelector('i').className = 'far fa-star';
-                  });
-              }
-          });
-      }
-    });
-
-    // Photo preview functionality
-    function previewPhoto(input) {
-      const preview = document.getElementById('photo-preview');
-      const uploadArea = document.getElementById('photo-upload-area');
-      
-      preview.innerHTML = '';
-      
-      if (input.files && input.files[0]) {
-        const file = input.files[0];
-        
-        // Check file size (5MB max)
-        if (file.size > 5 * 1024 * 1024) {
-          alert('Ukuran file terlalu besar. Maksimal 5MB.');
-          input.value = '';
-          return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          preview.innerHTML = `<img src="${e.target.result}" alt="Preview Foto">`;
-          uploadArea.style.borderColor = 'var(--cafe-main)';
-          uploadArea.innerHTML = `
-            <i class="fas fa-check-circle" style="color: var(--cafe-main);"></i>
-            <p>Foto berhasil dipilih</p>
-            <span>${file.name}</span>
-            <input type="file" id="review-photo" name="review_photo" accept="image/*" onchange="previewPhoto(this)" style="display: none;">
-          `;
-          
-          // Re-attach click event
-          uploadArea.onclick = function() {
-            document.getElementById('review-photo').click();
-          };
-        }
-        reader.readAsDataURL(file);
-      }
     }
+    inputs.forEach(i=>i.addEventListener('change', ()=> updateVisual(parseInt(i.value))));
+    const checked = container.querySelector('input[type=radio]:checked');
+    if (checked) updateVisual(parseInt(checked.value));
+  });
+});
 
-    // Reset upload area when form is submitted
-    document.querySelector('.review-form').addEventListener('submit', function() {
-      const uploadArea = document.getElementById('photo-upload-area');
-      setTimeout(() => {
-        uploadArea.innerHTML = `
-          <i class="fas fa-cloud-upload-alt"></i>
-          <p>Klik untuk upload foto</p>
-          <span>Format: JPG, PNG, GIF (Maks. 5MB)</span>
-          <input type="file" id="review-photo" name="review_photo" accept="image/*" onchange="previewPhoto(this)" style="display: none;">
-        `;
-        uploadArea.style.borderColor = 'var(--cafe-border)';
-        
-        // Re-attach click event
-        uploadArea.onclick = function() {
-          document.getElementById('review-photo').click();
-        };
-      }, 1000);
-    });
-  </script>
+// preview foto
+function previewPhoto(input) {
+  const preview = document.getElementById('photo-preview');
+  preview.innerHTML = '';
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    if (f.size > 5 * 1024 * 1024) { alert('Maks 5MB'); input.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.innerHTML = '<img src="'+e.target.result+'" alt="Preview">';
+    };
+    reader.readAsDataURL(f);
+  }
+}
+</script>
 </body>
 </html>
