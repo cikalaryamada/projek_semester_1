@@ -2,6 +2,8 @@
 // menu.php
 session_start();
 
+// NOTE: transfer payment method removed — upload handling and related session flags removed.
+
 // Koneksi database untuk menu
 $configs = [
     ['localhost', 'umkmk16', 'root', '']
@@ -58,14 +60,81 @@ $snack = $pdo->query("
   <link href="assets/css/style.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    /* Simplified styles: transfer/upload removed (transfer payment method removed) */
-    .file-upload-area { display: none; } /* removed */
-    .file-preview { display: none; } /* removed */
+    /* Additional Styles for Upload Feature */
+    .file-upload-area {
+      border: 2px dashed var(--cafe-border);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 1rem 0;
+    }
+
+    .file-upload-area:hover {
+      border-color: var(--cafe-main);
+      background: rgba(255, 214, 0, 0.05);
+    }
+
+    .file-upload-area.dragover {
+      border-color: var(--cafe-main);
+      background: rgba(255, 214, 0, 0.1);
+    }
+
+    .file-types {
+      color: var(--cafe-text-light);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .file-preview {
+      background: var(--cafe-card);
+      border: 1px solid var(--cafe-border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .preview-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .preview-content i {
+      color: var(--cafe-main);
+      font-size: 1.5rem;
+    }
+
+    .remove-file {
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .upload-section {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--cafe-border);
+    }
 
     .payment-success {
       text-align: center;
       padding: 2rem;
       color: var(--success);
+    }
+
+    .payment-success i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
     }
 
     .status-badge {
@@ -82,6 +151,18 @@ $snack = $pdo->query("
     .status-processing { background: #3742fa; color: white; }
     .status-completed { background: #2ed573; color: white; }
     .status-cancelled { background: #ff4757; color: white; }
+
+    .upload-success-alert {
+      background: rgba(46, 213, 115, 0.1);
+      color: #2ed573;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border: 1px solid rgba(46, 213, 115, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
 
     /* Receipt Styles */
     .receipt {
@@ -172,18 +253,17 @@ $snack = $pdo->query("
     .receipt-modal .modal-content {
       max-width: 500px;
     }
-
     /* Ubah background dropdown pilih nomor meja */
-    #table-number {
-      background-color: #000 !important;
-      color: #fff !important;
-    }
+#table-number {
+  background-color: #000 !important;
+  color: #fff !important;
+}
 
-    #table-number option,
-    #table-number optgroup {
-      background-color: #000 !important;
-      color: #fff !important;
-    }
+#table-number option,
+#table-number optgroup {
+  background-color: #000 !important;
+  color: #fff !important;
+}
 
   </style>
 </head>
@@ -211,6 +291,8 @@ $snack = $pdo->query("
   <!-- Menu Section -->
   <section class="menu-section">
     <div class="container">
+      <!-- Transfer payment removed; upload-success alert removed -->
+
       <h2 class="section-title">Our Menu</h2>
       <p class="section-subtitle">Pilihan terbaik kopi, minuman, dan makanan lezat</p>
       
@@ -449,6 +531,7 @@ $snack = $pdo->query("
       switchCategory('makanan');
       loadCartFromStorage();
       updateCart();
+      initFileUpload();
     }
 
     // Switch between menu categories
@@ -703,7 +786,7 @@ $snack = $pdo->query("
         const response = await saveOrderToDatabase(orderId, customerName, tableNumber, paymentMethod);
         
         if (response.success) {
-          // Simpan data order untuk kuitansi (unique_code tidak digunakan karena transfer dihapus)
+          // Simpan data order untuk kuitansi (status PENDING sekarang)
           currentOrderData = {
             order_id: orderId,
             customer_name: customerName,
@@ -712,12 +795,12 @@ $snack = $pdo->query("
             items: [...cart],
             total: totalAmount,
             unique_code: 0,
-            status: 'completed' // untuk pembayaran tunai langsung kita set completed/lunas
+            status: 'pending' // simpan sebagai pending terlebih dahulu
           };
           
           closeCheckoutModal();
           
-          // Untuk metode tunai langsung munculkan kuitansi dan kosongkan keranjang
+          // Tampilkan kuitansi (status pending)
           openReceipt(currentOrderData);
           clearCart();
           
@@ -761,10 +844,156 @@ $snack = $pdo->query("
       return 'ORD' + Date.now().toString().slice(-6);
     }
 
+    // File upload functionality
+    function initFileUpload() {
+      const uploadArea = document.getElementById('file-upload-area');
+      const fileInput = document.getElementById('transfer-proof');
+      if (!uploadArea || !fileInput) return;
+      
+      uploadArea.addEventListener('click', function() {
+        fileInput.click();
+      });
+      
+      uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+      
+      uploadArea.addEventListener('dragleave', function() {
+        uploadArea.classList.remove('dragover');
+      });
+      
+      uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          fileInput.files = files;
+          handleFileSelect(fileInput);
+        }
+      });
+    }
+
+    // Fungsi untuk handle file selection
+    function handleFileSelect(input) {
+      const file = input.files[0];
+      if (file) {
+        // Validasi file
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+        const maxSize = 2 * 1024 * 1024; // 2MB
+        
+        if (!validTypes.includes(file.type)) {
+          alert('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.');
+          return;
+        }
+        
+        if (file.size > maxSize) {
+          alert('Ukuran file terlalu besar. Maksimal 2MB.');
+          return;
+        }
+        
+        transferProofFile = file;
+        showFilePreview(file);
+        document.getElementById('verify-payment-btn').disabled = false;
+      }
+    }
+
+    // Fungsi untuk show file preview
+    function showFilePreview(file) {
+      const preview = document.getElementById('file-preview');
+      const fileName = document.getElementById('file-name');
+      if (!preview || !fileName) return;
+      
+      fileName.textContent = file.name;
+      preview.style.display = 'block';
+    }
+
+    // Fungsi untuk remove file
+    function removeFile() {
+      transferProofFile = null;
+      const preview = document.getElementById('file-preview');
+      if (preview) preview.style.display = 'none';
+      const input = document.getElementById('transfer-proof');
+      if (input) input.value = '';
+      const btn = document.getElementById('verify-payment-btn');
+      if (btn) btn.disabled = true;
+    }
+
+    // Handle form submission
+    const transferForm = document.getElementById('transfer-form');
+    if (transferForm) {
+      transferForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        verifyPayment();
+      });
+    }
+
+    // Function untuk verifikasi pembayaran (tidak digunakan apabila transfer dihapus)
+    async function verifyPayment() {
+      if (!transferProofFile) {
+        alert('Harap upload bukti transfer terlebih dahulu!');
+        return;
+      }
+      
+      const verifyBtn = document.getElementById('verify-payment-btn');
+      const originalText = verifyBtn.innerHTML;
+      
+      verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memverifikasi...';
+      verifyBtn.disabled = true;
+      
+      try {
+        // Submit form secara native (akan memanggil PHP di file yang sama)
+        const formData = new FormData(document.getElementById('transfer-form'));
+        
+        const response = await fetch('menu.php', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Upload gagal');
+        }
+        
+        // Tampilkan kuitansi
+        if (currentOrderData) {
+          openReceipt(currentOrderData);
+        }
+        
+        // Clear cart setelah berhasil
+        setTimeout(() => {
+          closePaymentModal();
+          clearCart();
+        }, 3000);
+        
+      } catch (error) {
+        alert('❌ Error: ' + error.message);
+        verifyBtn.innerHTML = originalText;
+        verifyBtn.disabled = false;
+      }
+    }
+
+    // Fungsi untuk tampilkan status sukses pembayaran
+    function showPaymentSuccess() {
+      document.getElementById('payment-content').style.display = 'none';
+      document.getElementById('verify-payment-btn').style.display = 'none';
+      document.getElementById('payment-status').style.display = 'block';
+    }
+
+    // Function untuk tutup modal pembayaran
+    function closePaymentModal() {
+      const modal = document.getElementById('payment-modal');
+      modal.classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
+
     // Function untuk buka kuitansi
     function openReceipt(orderData) {
       const modal = document.getElementById('receipt-modal');
       const receiptContent = document.getElementById('receipt-content');
+      
+      const paymentLabel = orderData.payment_method === 'cash' ? 'Tunai' : (orderData.payment_method === 'qris' ? 'QRIS' : 'Lainnya');
+      const statusText = orderData.status === 'completed' ? 'LUNAS' : 'MENUNGGU VERIFIKASI';
       
       const receiptHTML = `
         <div class="receipt">
@@ -779,7 +1008,7 @@ $snack = $pdo->query("
                 <p><strong>Pelanggan:</strong> ${orderData.customer_name}</p>
                 <p><strong>Meja:</strong> ${orderData.table_number}</p>
                 <p><strong>Tanggal:</strong> ${new Date().toLocaleString('id-ID')}</p>
-                <p><strong>Metode Bayar:</strong> ${orderData.payment_method === 'cash' ? 'Tunai' : orderData.payment_method}</p>
+                <p><strong>Metode Bayar:</strong> ${paymentLabel}</p>
             </div>
             
             <div class="receipt-items">
@@ -800,7 +1029,7 @@ $snack = $pdo->query("
             
             <div class="receipt-footer">
                 <p>Terima kasih atas kunjungan Anda</p>
-                <p>*** ${orderData.payment_method === 'cash' ? 'LUNAS' : 'SUKSES'} ***</p>
+                <p>*** ${statusText} ***</p>
                 <span class="receipt-status ${getStatusClass(orderData.status)}">${orderData.status.toUpperCase()}</span>
             </div>
         </div>
@@ -809,6 +1038,22 @@ $snack = $pdo->query("
       receiptContent.innerHTML = receiptHTML;
       modal.classList.add('show');
       document.body.style.overflow = 'hidden';
+    }
+
+    // Function untuk menampilkan kuitansi dari session
+    function showLastReceipt() {
+      // Untuk demo, kita buat data dummy
+      const orderData = {
+        order_id: '<?php echo $successOrderId ?? "ORD" . time(); ?>',
+        customer_name: 'Pelanggan',
+        table_number: '-',
+        payment_method: 'cash',
+        items: cart.length > 0 ? cart : [{nama: 'Sample Item', harga: 0, quantity: 1}],
+        total: cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0) || 0,
+        unique_code: 123,
+        status: 'pending'
+      };
+      openReceipt(orderData);
     }
 
     // Function untuk tutup kuitansi
@@ -837,10 +1082,14 @@ $snack = $pdo->query("
     // Close modal when clicking outside
     document.addEventListener('click', function(e) {
       const checkoutModal = document.getElementById('checkout-modal');
+      const paymentModal = document.getElementById('payment-modal');
       const receiptModal = document.getElementById('receipt-modal');
       
       if (e.target === checkoutModal) {
         closeCheckoutModal();
+      }
+      if (e.target === paymentModal) {
+        closePaymentModal();
       }
       if (e.target === receiptModal) {
         closeReceiptModal();
