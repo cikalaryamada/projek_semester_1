@@ -1,5 +1,5 @@
 <?php
-// Ulasan.php - VERSI LENGKAP DENGAN UPLOAD FOTO
+// Ulasan.php - VERSI LENGKAP DENGAN UPLOAD FOTO (SUDAH DIPERBAIKI)
 session_start();
 
 // Koneksi database
@@ -1350,22 +1350,62 @@ function time_elapsed_string($datetime, $full = false) {
         updateLoadMoreButton();
       }
       
-      // Star rating interaction
-      const starInputs = document.querySelectorAll('.star-rating input');
-      starInputs.forEach(input => {
-        input.addEventListener('change', function() {
-          const rating = this.value;
-          const stars = this.parentElement.querySelectorAll('label i');
+      // ===== STAR RATING INTERACTION - DIPERBAIKI =====
+      const starRating = document.querySelector('.star-rating');
+      if (starRating) {
+          const radioInputs = starRating.querySelectorAll('input[type="radio"]');
+          const labels = starRating.querySelectorAll('label');
           
-          stars.forEach((star, index) => {
-            if (index < rating) {
-              star.className = 'fas fa-star';
-            } else {
-              star.className = 'far fa-star';
-            }
+          function updateStars(rating) {
+              labels.forEach((label, index) => {
+                  const starValue = 5 - index;
+                  const icon = label.querySelector('i');
+                  
+                  if (starValue <= rating) {
+                      icon.className = 'fas fa-star';
+                  } else {
+                      icon.className = 'far fa-star';
+                  }
+              });
+          }
+          
+          const checkedInput = starRating.querySelector('input[type="radio"]:checked');
+          if (checkedInput) {
+              updateStars(parseInt(checkedInput.value));
+          }
+          
+          radioInputs.forEach(input => {
+              input.addEventListener('change', function() {
+                  updateStars(parseInt(this.value));
+              });
           });
-        });
-      });
+          
+          labels.forEach((label, index) => {
+              label.addEventListener('mouseenter', function() {
+                  const starValue = 5 - index;
+                  labels.forEach((l, i) => {
+                      const lValue = 5 - i;
+                      const icon = l.querySelector('i');
+                      if (lValue <= starValue) {
+                          icon.className = 'fas fa-star';
+                      } else {
+                          icon.className = 'far fa-star';
+                      }
+                  });
+              });
+          });
+          
+          starRating.addEventListener('mouseleave', function() {
+              const checkedInput = starRating.querySelector('input[type="radio"]:checked');
+              if (checkedInput) {
+                  updateStars(parseInt(checkedInput.value));
+              } else {
+                  labels.forEach(label => {
+                      label.querySelector('i').className = 'far fa-star';
+                  });
+              }
+          });
+      }
     });
 
     // Photo preview functionality

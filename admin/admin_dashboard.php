@@ -2387,18 +2387,44 @@ $sellers = $pdo->query("SELECT * FROM penjual")->fetchAll(PDO::FETCH_ASSOC);
                     <?php echo htmlspecialchars(substr($review['Isi_Ulasan'], 0, 50)); ?>...
                   </td>
                   <td>
-                    <?php if (!empty($review['Foto_Ulasan'])): ?>
-                      <img src="assets/images/reviews/<?php echo $review['Foto_Ulasan']; ?>" 
-                           alt="Review Photo" 
-                           class="product-image"
-                           onclick="showReviewDetail(<?php echo $review['ID_Ulasan']; ?>)"
-                           style="cursor: pointer;">
-                    <?php else: ?>
-                      <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--cafe-bg); display: flex; align-items: center; justify-content: center; color: var(--cafe-text-light); border: 2px dashed var(--cafe-border);">
-                        <i class="fas fa-camera"></i>
-                      </div>
-                    <?php endif; ?>
-                  </td>
+  <?php 
+  // Tampilkan foto ulasan dengan error handling
+  if (!empty($review['Foto_Ulasan'])): 
+    $photoPath = 'assets/images/reviews/' . $review['Foto_Ulasan'];
+    
+    // Cek apakah file ada
+    if (file_exists($photoPath)): 
+  ?>
+      <img src="<?php echo $photoPath; ?>?v=<?php echo time(); ?>" 
+           alt="Review Photo" 
+           class="product-image"
+           onclick="showReviewDetail(<?php echo $review['ID_Ulasan']; ?>)"
+           style="cursor: pointer; width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      
+      <!-- Error fallback jika gambar gagal load -->
+      <div style="display: none; width: 60px; height: 60px; border-radius: 8px; background: #ff4757; color: white; align-items: center; justify-content: center; font-size: 0.7rem; text-align: center; flex-direction: column; padding: 4px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>ERROR</span>
+      </div>
+    <?php else: ?>
+      <!-- File tidak ditemukan -->
+      <div style="width: 60px; height: 60px; border-radius: 8px; background: #ff4757; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 0.65rem; text-align: center; padding: 4px;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 1rem; margin-bottom: 2px;"></i>
+        <span style="line-height: 1.1;">FILE<br>NOT<br>FOUND</span>
+      </div>
+      <!-- Debug info -->
+      <div style="font-size: 0.65rem; color: #ff4757; margin-top: 2px; max-width: 80px; word-break: break-all;">
+        <?php echo htmlspecialchars($review['Foto_Ulasan']); ?>
+      </div>
+    <?php endif; ?>
+  <?php else: ?>
+    <!-- Tidak ada foto diupload -->
+    <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--cafe-bg); display: flex; align-items: center; justify-content: center; color: var(--cafe-text-light); border: 2px dashed var(--cafe-border);">
+      <i class="fas fa-camera"></i>
+    </div>
+  <?php endif; ?>
+</td>
                   <td>
                     <?php if ($review['Rekomendasi'] === 'yes'): ?>
                       <span class="badge success"><i class="fas fa-thumbs-up"></i> Yes</span>
