@@ -2,55 +2,6 @@
 // menu.php
 session_start();
 
-// Handle file upload jika ada
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['transfer_proof'])) {
-    $orderId = $_POST['order_id'] ?? '';
-    
-    if (isset($_FILES['transfer_proof']) && $_FILES['transfer_proof']['error'] === 0) {
-        $uploadDir = 'assets/images/transfer_proofs/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-        
-        $fileExtension = pathinfo($_FILES['transfer_proof']['name'], PATHINFO_EXTENSION);
-        $fileName = 'transfer_' . $orderId . '_' . time() . '.' . $fileExtension;
-        $uploadFile = $uploadDir . $fileName;
-        
-        $allowedTypes = ['jpg', 'jpeg', 'png', 'pdf'];
-        if (in_array(strtolower($fileExtension), $allowedTypes)) {
-            if (move_uploaded_file($_FILES['transfer_proof']['tmp_name'], $uploadFile)) {
-                $_SESSION['transfer_proofs'][$orderId] = [
-                    'file_name' => $fileName,
-                    'upload_time' => date('Y-m-d H:i:s')
-                ];
-                $uploadSuccess = true;
-                
-                // Simpan data order untuk kuitansi
-                $_SESSION['last_order'] = [
-                    'order_id' => $orderId,
-                    'customer_name' => $_POST['customer_name'] ?? 'Pelanggan',
-                    'table_number' => $_POST['table_number'] ?? '-',
-                    'payment_method' => 'transfer',
-                    'items' => $_SESSION['cart_items'] ?? [],
-                    'total' => $_POST['total_amount'] ?? 0,
-                    'unique_code' => $_POST['unique_code'] ?? 0,
-                    'status' => 'pending'
-                ];
-                
-                // Redirect untuk menghindari resubmit form
-                header('Location: ' . $_SERVER['PHP_SELF'] . '?upload_success=1&order_id=' . $orderId);
-                exit;
-            }
-        }
-    }
-}
-
-// Tampilkan pesan sukses jika ada
-if (isset($_GET['upload_success']) && $_GET['upload_success'] == 1) {
-    $successOrderId = $_GET['order_id'] ?? '';
-    $uploadSuccess = true;
-}
-
 // Koneksi database untuk menu
 $configs = [
     ['localhost', 'umkmk16', 'root', '']
@@ -107,81 +58,14 @@ $snack = $pdo->query("
   <link href="assets/css/style.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    /* Additional Styles for Upload Feature */
-    .file-upload-area {
-      border: 2px dashed var(--cafe-border);
-      border-radius: 10px;
-      padding: 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      margin: 1rem 0;
-    }
-
-    .file-upload-area:hover {
-      border-color: var(--cafe-main);
-      background: rgba(255, 214, 0, 0.05);
-    }
-
-    .file-upload-area.dragover {
-      border-color: var(--cafe-main);
-      background: rgba(255, 214, 0, 0.1);
-    }
-
-    .file-types {
-      color: var(--cafe-text-light);
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
-
-    .file-preview {
-      background: var(--cafe-card);
-      border: 1px solid var(--cafe-border);
-      border-radius: 8px;
-      padding: 1rem;
-      margin: 1rem 0;
-    }
-
-    .preview-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    .preview-content i {
-      color: var(--cafe-main);
-      font-size: 1.5rem;
-    }
-
-    .remove-file {
-      background: var(--danger);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .upload-section {
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--cafe-border);
-    }
+    /* Simplified styles: transfer/upload removed (transfer payment method removed) */
+    .file-upload-area { display: none; } /* removed */
+    .file-preview { display: none; } /* removed */
 
     .payment-success {
       text-align: center;
       padding: 2rem;
       color: var(--success);
-    }
-
-    .payment-success i {
-      font-size: 3rem;
-      margin-bottom: 1rem;
     }
 
     .status-badge {
@@ -198,18 +82,6 @@ $snack = $pdo->query("
     .status-processing { background: #3742fa; color: white; }
     .status-completed { background: #2ed573; color: white; }
     .status-cancelled { background: #ff4757; color: white; }
-
-    .upload-success-alert {
-      background: rgba(46, 213, 115, 0.1);
-      color: #2ed573;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      border: 1px solid rgba(46, 213, 115, 0.3);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
 
     /* Receipt Styles */
     .receipt {
@@ -278,15 +150,6 @@ $snack = $pdo->query("
       color: #666;
     }
 
-    .receipt-status {
-      display: inline-block;
-      padding: 0.3rem 0.8rem;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: bold;
-      margin-top: 0.5rem;
-    }
-
     /* Print Styles */
     @media print {
       body * {
@@ -309,17 +172,18 @@ $snack = $pdo->query("
     .receipt-modal .modal-content {
       max-width: 500px;
     }
-    /* Ubah background dropdown pilih nomor meja */
-#table-number {
-  background-color: #000 !important;
-  color: #fff !important;
-}
 
-#table-number option,
-#table-number optgroup {
-  background-color: #000 !important;
-  color: #fff !important;
-}
+    /* Ubah background dropdown pilih nomor meja */
+    #table-number {
+      background-color: #000 !important;
+      color: #fff !important;
+    }
+
+    #table-number option,
+    #table-number optgroup {
+      background-color: #000 !important;
+      color: #fff !important;
+    }
 
   </style>
 </head>
@@ -347,20 +211,6 @@ $snack = $pdo->query("
   <!-- Menu Section -->
   <section class="menu-section">
     <div class="container">
-      <!-- Upload Success Alert -->
-      <?php if (isset($uploadSuccess) && $uploadSuccess): ?>
-        <div class="upload-success-alert">
-          <i class="fas fa-check-circle"></i>
-          <div>
-            <strong>Bukti transfer berhasil diupload!</strong>
-            <p>Pesanan Anda sedang diproses dan menunggu verifikasi. Status: <span class="status-badge status-pending">Pending</span></p>
-            <button class="btn-primary" onclick="showLastReceipt()" style="margin-top: 0.5rem; padding: 0.5rem 1rem;">
-              <i class="fas fa-receipt"></i> Lihat Kuitansi
-            </button>
-          </div>
-        </div>
-      <?php endif; ?>
-
       <h2 class="section-title">Our Menu</h2>
       <p class="section-subtitle">Pilihan terbaik kopi, minuman, dan makanan lezat</p>
       
@@ -473,13 +323,6 @@ $snack = $pdo->query("
                 Tunai
               </span>
             </label>
-            <label class="payment-option">
-              <input type="radio" name="payment" value="transfer">
-              <span class="payment-label">
-                <i class="fas fa-university"></i>
-                Transfer Bank
-              </span>
-            </label>
           </div>
         </div>
       </div>
@@ -490,117 +333,6 @@ $snack = $pdo->query("
           <i class="fas fa-check-circle"></i> Konfirmasi Pesanan
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- Payment Modal -->
-  <div class="modal" id="payment-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3><i class="fas fa-university"></i> Pembayaran Transfer</h3>
-        <button class="modal-close" onclick="closePaymentModal()">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      
-      <!-- Form untuk upload bukti transfer -->
-      <form id="transfer-form" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="customer_name" id="form-customer-name">
-        <input type="hidden" name="table_number" id="form-table-number">
-        <input type="hidden" name="total_amount" id="form-total-amount">
-        <input type="hidden" name="unique_code" id="form-unique-code">
-        
-        <div class="modal-body">
-          <div id="payment-content">
-            <!-- Transfer Payment -->
-            <div id="transfer-payment" class="payment-method">
-              <h4>Transfer Bank</h4>
-              <div class="bank-accounts">
-                <div class="bank-account">
-                  <div class="bank-icon">
-                    <i class="fas fa-university"></i>
-                  </div>
-                  <div class="bank-info">
-                    <h5>BCA - 923809042893</h5>
-                    <p>a.n. K SIXTEEN CAFE</p>
-                  </div>
-                </div>
-                <div class="bank-account">
-                  <div class="bank-icon">
-                    <i class="fas fa-university"></i>
-                  </div>
-                  <div class="bank-info">
-                    <h5>BRI - 0987654321</h5>
-                    <p>a.n. K SIXTEEN CAFE</p>
-                  </div>
-                </div>
-                <div class="bank-account">
-                  <div class="bank-icon">
-                    <i class="fas fa-university"></i>
-                  </div>
-                  <div class="bank-info">
-                    <h5>Mandiri - 1122334455</h5>
-                    <p>a.n. K SIXTEEN CAFE</p>
-                  </div>
-                </div>
-              </div>
-              <div class="transfer-instructions">
-                <p><strong>Total Transfer: <span id="transfer-total">Rp 0</span></strong></p>
-                <p><strong>Kode Unik: <span id="transfer-notes">ORDER#000</span></strong></p>
-                <p><strong>Langkah-langkah:</strong></p>
-                <ol>
-                  <li>Transfer ke salah satu rekening di atas</li>
-                  <li>Masukkan jumlah transfer sesuai total + kode unik</li>
-                  <li>Gunakan berita transfer: <strong id="transfer-message">ORDER#000</strong></li>
-                  <li>Simpan bukti transfer</li>
-                  <li>Upload bukti transfer di bawah ini</li>
-                </ol>
-              </div>
-              
-              <!-- Upload Bukti Transfer -->
-              <div class="upload-section">
-                <h4><i class="fas fa-upload"></i> Upload Bukti Transfer</h4>
-                <div class="file-upload-area" id="file-upload-area">
-                  <i class="fas fa-cloud-upload-alt fa-3x"></i>
-                  <p>Klik atau drop file bukti transfer di sini</p>
-                  <p class="file-types">Format: JPG, PNG, PDF (Maks. 2MB)</p>
-                  <input type="file" id="transfer-proof" name="transfer_proof" 
-                         accept=".jpg,.jpeg,.png,.pdf" style="display: none;" 
-                         onchange="handleFileSelect(this)">
-                  <input type="hidden" name="order_id" id="form-order-id">
-                </div>
-                <div id="file-preview" class="file-preview" style="display: none;">
-                  <div class="preview-content">
-                    <i class="fas fa-file-invoice"></i>
-                    <span id="file-name"></span>
-                    <button type="button" onclick="removeFile()" class="remove-file">
-                      <i class="fas fa-times"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="payment-actions">
-            <button type="button" class="btn-secondary" onclick="closePaymentModal()">
-              <i class="fas fa-times"></i> Batal
-            </button>
-            <button type="submit" class="btn-primary" id="verify-payment-btn" disabled>
-              <i class="fas fa-check-circle"></i> Konfirmasi Pembayaran
-            </button>
-          </div>
-          
-          <div id="payment-status" style="display: none;">
-            <div class="payment-success">
-              <i class="fas fa-check-circle"></i>
-              <h4>Pembayaran Berhasil!</h4>
-              <p>Bukti transfer berhasil diupload dan pesanan sedang diproses</p>
-              <p><small>Status: <span class="status-badge status-pending">Pending</span></small></p>
-            </div>
-          </div>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -710,7 +442,6 @@ $snack = $pdo->query("
     let currentPaymentMethod = null;
     let currentCustomerName = null;
     let currentTableNumber = null;
-    let transferProofFile = null;
     let currentOrderData = null;
 
     // Initialize the menu
@@ -718,7 +449,6 @@ $snack = $pdo->query("
       switchCategory('makanan');
       loadCartFromStorage();
       updateCart();
-      initFileUpload();
     }
 
     // Switch between menu categories
@@ -943,7 +673,7 @@ $snack = $pdo->query("
       document.body.style.overflow = 'auto';
     }
 
-    // Function untuk proses order
+    // Function untuk proses order (HANYA TUNAI sekarang — metode transfer dihapus)
     async function processOrder() {
       const customerName = document.getElementById('customer-name').value.trim();
       const tableNumber = document.getElementById('table-number').value.trim();
@@ -961,7 +691,6 @@ $snack = $pdo->query("
       
       const orderId = generateOrderId();
       const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-      const uniqueCode = paymentMethod === 'transfer' ? Math.floor(Math.random() * 900) + 100 : 0;
       
       try {
         // Tampilkan loading
@@ -974,7 +703,7 @@ $snack = $pdo->query("
         const response = await saveOrderToDatabase(orderId, customerName, tableNumber, paymentMethod);
         
         if (response.success) {
-          // Simpan data order untuk kuitansi
+          // Simpan data order untuk kuitansi (unique_code tidak digunakan karena transfer dihapus)
           currentOrderData = {
             order_id: orderId,
             customer_name: customerName,
@@ -982,18 +711,16 @@ $snack = $pdo->query("
             payment_method: paymentMethod,
             items: [...cart],
             total: totalAmount,
-            unique_code: uniqueCode,
-            status: 'pending'
+            unique_code: 0,
+            status: 'completed' // untuk pembayaran tunai langsung kita set completed/lunas
           };
           
           closeCheckoutModal();
           
-          if (paymentMethod === 'cash') {
-            openReceipt(currentOrderData);
-            clearCart();
-          } else if (paymentMethod === 'transfer') {
-            openPaymentModal(orderId, paymentMethod, totalAmount, customerName, tableNumber, uniqueCode);
-          }
+          // Untuk metode tunai langsung munculkan kuitansi dan kosongkan keranjang
+          openReceipt(currentOrderData);
+          clearCart();
+          
         } else {
           alert('❌ Error: ' + response.message);
           checkoutBtn.innerHTML = originalText;
@@ -1034,188 +761,6 @@ $snack = $pdo->query("
       return 'ORD' + Date.now().toString().slice(-6);
     }
 
-    // Function untuk buka modal pembayaran transfer
-    function openPaymentModal(orderId, paymentMethod, totalAmount, customerName, tableNumber, uniqueCode = 0) {
-      currentOrderId = orderId;
-      currentPaymentMethod = paymentMethod;
-      currentCustomerName = customerName;
-      currentTableNumber = tableNumber;
-      
-      const modal = document.getElementById('payment-modal');
-      const transferTotal = document.getElementById('transfer-total');
-      const transferNotes = document.getElementById('transfer-notes');
-      const transferMessage = document.getElementById('transfer-message');
-      const formOrderId = document.getElementById('form-order-id');
-      const formCustomerName = document.getElementById('form-customer-name');
-      const formTableNumber = document.getElementById('form-table-number');
-      const formTotalAmount = document.getElementById('form-total-amount');
-      const formUniqueCode = document.getElementById('form-unique-code');
-      
-      // Set form values
-      formOrderId.value = orderId;
-      formCustomerName.value = customerName;
-      formTableNumber.value = tableNumber;
-      formTotalAmount.value = totalAmount;
-      formUniqueCode.value = uniqueCode;
-      
-      // Hitung total akhir dengan kode unik
-      const finalTotal = totalAmount + uniqueCode;
-      
-      // Set total amount
-      transferTotal.textContent = formatPrice(finalTotal);
-      transferNotes.textContent = `ORDER#${orderId}`;
-      transferMessage.textContent = `ORDER#${orderId}`;
-      
-      // Reset status
-      document.getElementById('payment-status').style.display = 'none';
-      document.getElementById('verify-payment-btn').style.display = 'block';
-      document.getElementById('payment-content').style.display = 'block';
-      document.getElementById('verify-payment-btn').disabled = true;
-      
-      // Reset file upload
-      removeFile();
-      
-      // Close checkout modal dan buka payment modal
-      closeCheckoutModal();
-      modal.classList.add('show');
-      document.body.style.overflow = 'hidden';
-    }
-
-    // File upload functionality
-    function initFileUpload() {
-      const uploadArea = document.getElementById('file-upload-area');
-      const fileInput = document.getElementById('transfer-proof');
-      
-      uploadArea.addEventListener('click', function() {
-        fileInput.click();
-      });
-      
-      uploadArea.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-      });
-      
-      uploadArea.addEventListener('dragleave', function() {
-        uploadArea.classList.remove('dragover');
-      });
-      
-      uploadArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-          fileInput.files = files;
-          handleFileSelect(fileInput);
-        }
-      });
-    }
-
-    // Fungsi untuk handle file selection
-    function handleFileSelect(input) {
-      const file = input.files[0];
-      if (file) {
-        // Validasi file
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-        const maxSize = 2 * 1024 * 1024; // 2MB
-        
-        if (!validTypes.includes(file.type)) {
-          alert('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.');
-          return;
-        }
-        
-        if (file.size > maxSize) {
-          alert('Ukuran file terlalu besar. Maksimal 2MB.');
-          return;
-        }
-        
-        transferProofFile = file;
-        showFilePreview(file);
-        document.getElementById('verify-payment-btn').disabled = false;
-      }
-    }
-
-    // Fungsi untuk show file preview
-    function showFilePreview(file) {
-      const preview = document.getElementById('file-preview');
-      const fileName = document.getElementById('file-name');
-      
-      fileName.textContent = file.name;
-      preview.style.display = 'block';
-    }
-
-    // Fungsi untuk remove file
-    function removeFile() {
-      transferProofFile = null;
-      document.getElementById('file-preview').style.display = 'none';
-      document.getElementById('transfer-proof').value = '';
-      document.getElementById('verify-payment-btn').disabled = true;
-    }
-
-    // Handle form submission
-    document.getElementById('transfer-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      verifyPayment();
-    });
-
-    // Function untuk verifikasi pembayaran
-    async function verifyPayment() {
-      if (!transferProofFile) {
-        alert('Harap upload bukti transfer terlebih dahulu!');
-        return;
-      }
-      
-      const verifyBtn = document.getElementById('verify-payment-btn');
-      const originalText = verifyBtn.innerHTML;
-      
-      verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memverifikasi...';
-      verifyBtn.disabled = true;
-      
-      try {
-        // Submit form secara native (akan memanggil PHP di file yang sama)
-        const formData = new FormData(document.getElementById('transfer-form'));
-        
-        const response = await fetch('menu.php', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error('Upload gagal');
-        }
-        
-        // Tampilkan kuitansi
-        if (currentOrderData) {
-          openReceipt(currentOrderData);
-        }
-        
-        // Clear cart setelah berhasil
-        setTimeout(() => {
-          closePaymentModal();
-          clearCart();
-        }, 3000);
-        
-      } catch (error) {
-        alert('❌ Error: ' + error.message);
-        verifyBtn.innerHTML = originalText;
-        verifyBtn.disabled = false;
-      }
-    }
-
-    // Fungsi untuk tampilkan status sukses pembayaran
-    function showPaymentSuccess() {
-      document.getElementById('payment-content').style.display = 'none';
-      document.getElementById('verify-payment-btn').style.display = 'none';
-      document.getElementById('payment-status').style.display = 'block';
-    }
-
-    // Function untuk tutup modal pembayaran
-    function closePaymentModal() {
-      const modal = document.getElementById('payment-modal');
-      modal.classList.remove('show');
-      document.body.style.overflow = 'auto';
-    }
-
     // Function untuk buka kuitansi
     function openReceipt(orderData) {
       const modal = document.getElementById('receipt-modal');
@@ -1234,7 +779,7 @@ $snack = $pdo->query("
                 <p><strong>Pelanggan:</strong> ${orderData.customer_name}</p>
                 <p><strong>Meja:</strong> ${orderData.table_number}</p>
                 <p><strong>Tanggal:</strong> ${new Date().toLocaleString('id-ID')}</p>
-                <p><strong>Metode Bayar:</strong> ${orderData.payment_method === 'cash' ? 'Tunai' : 'Transfer Bank'}</p>
+                <p><strong>Metode Bayar:</strong> ${orderData.payment_method === 'cash' ? 'Tunai' : orderData.payment_method}</p>
             </div>
             
             <div class="receipt-items">
@@ -1251,21 +796,11 @@ $snack = $pdo->query("
                     <span><strong>TOTAL</strong></span>
                     <span><strong>${formatPrice(orderData.total)}</strong></span>
                 </div>
-                ${orderData.unique_code > 0 ? `
-                <div class="receipt-item">
-                    <span>Kode Unik</span>
-                    <span>+ ${orderData.unique_code}</span>
-                </div>
-                <div class="receipt-item">
-                    <span><strong>TOTAL TRANSFER</strong></span>
-                    <span><strong>${formatPrice(orderData.total + orderData.unique_code)}</strong></span>
-                </div>
-                ` : ''}
             </div>
             
             <div class="receipt-footer">
                 <p>Terima kasih atas kunjungan Anda</p>
-                <p>*** ${orderData.payment_method === 'cash' ? 'LUNAS' : 'MENUNGGU VERIFIKASI'} ***</p>
+                <p>*** ${orderData.payment_method === 'cash' ? 'LUNAS' : 'SUKSES'} ***</p>
                 <span class="receipt-status ${getStatusClass(orderData.status)}">${orderData.status.toUpperCase()}</span>
             </div>
         </div>
@@ -1274,22 +809,6 @@ $snack = $pdo->query("
       receiptContent.innerHTML = receiptHTML;
       modal.classList.add('show');
       document.body.style.overflow = 'hidden';
-    }
-
-    // Function untuk menampilkan kuitansi dari session
-    function showLastReceipt() {
-      // Untuk demo, kita buat data dummy
-      const orderData = {
-        order_id: '<?php echo $successOrderId ?? "ORD" . time(); ?>',
-        customer_name: 'Pelanggan',
-        table_number: '-',
-        payment_method: 'transfer',
-        items: cart.length > 0 ? cart : [{nama: 'Sample Item', harga: 0, quantity: 1}],
-        total: cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0) || 0,
-        unique_code: 123,
-        status: 'pending'
-      };
-      openReceipt(orderData);
     }
 
     // Function untuk tutup kuitansi
@@ -1318,14 +837,10 @@ $snack = $pdo->query("
     // Close modal when clicking outside
     document.addEventListener('click', function(e) {
       const checkoutModal = document.getElementById('checkout-modal');
-      const paymentModal = document.getElementById('payment-modal');
       const receiptModal = document.getElementById('receipt-modal');
       
       if (e.target === checkoutModal) {
         closeCheckoutModal();
-      }
-      if (e.target === paymentModal) {
-        closePaymentModal();
       }
       if (e.target === receiptModal) {
         closeReceiptModal();
